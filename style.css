@@ -1,0 +1,292 @@
+/* Возраст тела. Токены и компоненты взяты из app.irenabio.com дословно,
+   на глаз ничего не подбиралось. Мобайл-фёрст, без сборки. */
+
+:root {
+  --bg: #fcf8f5;
+  --surface: #ffffff;
+  --card: #ffffff;
+  --text: #3d3333;
+  --text-home: #3d2b2b;
+  --muted: #8a7d7d;
+  --muted-home: #9b8278;
+  --ink-strong: #5a3535;
+  --ink-body: #5a4843;
+  --kicker: #8a5555;
+  --accent: #c98a8a;
+  --accent-deep: #b06f72;
+  --accent-light: #d9a7a0;
+  --cta-bg: #b06f72;
+  --on-accent: #fff;
+  --border: #efe3dd;
+  --track: #efe3dd;
+  --accent-wash: #f3e3df;
+  --accent-wash-active: #ecd6d0;
+  --success: #1d9e75;
+  --brand-grad: linear-gradient(135deg, #d9a7a0, #c98a8a);
+  --accent-grad-h: linear-gradient(90deg, #d9a7a0, #c98a8a);
+  --glass: rgba(255,255,255,0.55);
+  --shadow: 0 8px 28px rgba(176, 111, 114, 0.10);
+  --shadow-cta: 0 4px 14px rgba(176,111,114,0.22);
+  --shadow-next: 0 6px 20px rgba(176,111,114,.10);
+  --tap-accent: rgba(176,111,114,0.15);
+  --backdrop: rgba(61, 51, 51, 0.45);
+  --radius: 18px;
+  --maxw: 560px;
+}
+
+/* Тёмная. Переопределяем ТОЛЬКО токены. Намеренно НЕ трогаем --accent,
+   --on-accent, --cta-bg: коралловая заливка одинаково хороша на обоих фонах,
+   поэтому кнопка "Дальше" остаётся тем же #b06f72 в обеих темах. */
+:root[data-theme="dark"] {
+  --bg: #1b1512;
+  --surface: #241b17;
+  --card: #241b17;
+  --track: #3a2d28;
+  --border: #3a2d27;
+  --text: #efe6e0;
+  --text-home: #f2e9e3;
+  --muted: #ad9f98;
+  --muted-home: #b6a49b;
+  --ink-strong: #ecd6cd;
+  --ink-body: #d9cdc6;
+  --kicker: #cf9f9f;
+  --accent-deep: #e2a5a5;
+  --accent-wash: #3a2925;
+  --accent-wash-active: #45312b;
+  --success: #26a97e;
+  --glass: rgba(255,255,255,0.10);
+  --shadow: 0 8px 28px rgba(0,0,0,0.45);
+  --shadow-cta: 0 4px 14px rgba(0,0,0,0.45);
+  --shadow-next: 0 6px 20px rgba(0,0,0,0.45);
+  --tap-accent: rgba(255,255,255,0.10);
+  --backdrop: rgba(0,0,0,0.6);
+}
+:root[data-theme="dark"] input::placeholder { color: var(--muted); opacity: 1; }
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text-home);
+  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+}
+body.no-scroll { overflow: hidden; }
+
+/* ===================== КАРКАС ЭКРАНА =====================
+   Блок обязан помещаться в один экран без прокрутки: шапка и подвал
+   прибиты, тело растягивается и прокручивается только если совсем не влезло. */
+.screen {
+  min-height: 100dvh;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 18px calc(18px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column;
+}
+.screen[hidden] { display: none; }
+.screen-head { padding: 18px 0 10px; flex: 0 0 auto; }
+.screen-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-top: 8px; }
+.screen-body.center { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.screen-foot { flex: 0 0 auto; padding-top: 12px; }
+
+.screen-title { font-size: 26px; font-weight: 800; line-height: 1.15; margin: 0 0 8px; }
+.screen-lead { color: var(--muted-home); margin: 0 0 22px; font-size: 15px; }
+.screen-text { color: var(--ink-body); margin: 0 0 18px; font-size: 15px; }
+.screen-hint { color: var(--muted-home); margin: 0 0 16px; font-size: 15px; }
+
+.hero-mark {
+  width: 56px; height: 56px; border-radius: 16px; margin: 12px 0 18px;
+  background: var(--brand-grad); color: var(--on-accent);
+  display: flex; align-items: center; justify-content: center; font-size: 26px;
+}
+.hero-mark.warn { background: var(--accent-wash); color: var(--accent-deep); }
+
+.block-ic {
+  width: 44px; height: 44px; border-radius: 13px; margin: 0 0 14px;
+  background: var(--accent-wash); color: var(--accent-deep);
+  display: flex; align-items: center; justify-content: center; font-size: 22px;
+}
+
+/* ===================== ТУМБЛЕР ТЕМЫ ===================== */
+.theme-toggle {
+  position: fixed; top: calc(12px + env(safe-area-inset-top)); right: 14px; z-index: 40;
+  width: 38px; height: 38px; border-radius: 12px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); color: var(--muted-home);
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ===================== ПРОГРЕСС ===================== */
+.progress-label { font-size: 12px; font-weight: 600; color: var(--kicker); letter-spacing: .5px; text-transform: uppercase; margin-bottom: 8px; }
+.progress-track { height: 4px; border-radius: 999px; background: var(--track); overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 999px; background: var(--accent-grad-h); transition: width .25s; }
+
+/* ===================== КНОПКИ ===================== */
+.btn {
+  display: block; width: 100%; padding: 15px 20px; border-radius: 14px;
+  font-family: inherit; font-weight: 700; font-size: 16px;
+  border: none; cursor: pointer; text-align: center;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Акцент один и сплошной, без градиента. */
+.btn-primary { background: var(--cta-bg); color: var(--on-accent); box-shadow: var(--shadow-cta); }
+.btn-primary:hover { filter: brightness(0.97); }
+.btn-primary:disabled { opacity: .5; cursor: default; filter: none; box-shadow: none; }
+
+.btn-ghost { background: transparent; color: var(--accent-deep); border: 1.5px solid var(--border); }
+.btn-ghost:hover { border-color: var(--accent); }
+
+/* Пропустить: присутствует всегда, но заметно тише основной. */
+.btn-quiet {
+  background: transparent; color: var(--muted-home); border: none;
+  font-weight: 600; font-size: 14px; padding: 12px 20px 4px;
+}
+.btn-quiet:hover { color: var(--accent-deep); }
+
+.btn-video {
+  background: var(--accent-wash); color: var(--accent-deep);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin: 0 0 16px; padding: 13px 18px; font-size: 15px;
+}
+.btn-video:active { background: var(--accent-wash-active); }
+.btn-video i { font-size: 19px; }
+
+/* ===================== ПОЛЯ ===================== */
+.field { display: block; margin: 0 0 16px; }
+.field-label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; color: var(--text-home); }
+.field input[type="number"], #intro-age {
+  width: 100%; padding: 13px 14px; font-size: 16px; color: var(--text-home);
+  font-family: inherit; background: var(--surface);
+  border: 1.5px solid var(--border); border-radius: 13px;
+}
+.field input[type="number"]:focus, #intro-age:focus { outline: none; border-color: var(--accent); }
+.field-row { display: flex; align-items: center; gap: 10px; }
+.field-unit { font-size: 14px; color: var(--muted-home); flex: 0 0 auto; }
+.field-error { color: var(--accent-deep); font-size: 13px; margin: 0 2px 12px; }
+
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pair-cell { display: block; }
+
+/* убираем стрелки у number, они мешают на мобильном */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
+
+/* ===================== ВЫБОР (пол, кого проверяем) ===================== */
+.opts { border: 0; padding: 0; margin: 0 0 18px; }
+.opts legend { padding: 0; }
+.opts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.opt {
+  position: relative; display: block; cursor: pointer; text-align: center;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 14px; padding: 13px 10px; font-size: 15px; font-weight: 600;
+  transition: border-color .15s, box-shadow .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.opt input { position: absolute; opacity: 0; pointer-events: none; }
+.opt.selected { border-color: var(--accent); box-shadow: var(--shadow); }
+.opt:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ===================== ПРОТОКОЛ (раскрывашка) ===================== */
+.protocol { margin: 0 0 16px; }
+.protocol summary {
+  list-style: none; cursor: pointer; font-size: 14px; font-weight: 600;
+  color: var(--accent-deep); padding: 4px 0; display: inline-flex; align-items: center; gap: 6px;
+}
+.protocol summary::-webkit-details-marker { display: none; }
+.protocol summary::after { content: "\ea5f"; font-family: "tabler-icons"; font-weight: 400; font-size: 16px; }
+.protocol[open] summary::after { content: "\ea62"; }
+.protocol p { margin: 8px 0 0; font-size: 14px; line-height: 1.65; color: var(--ink-body); }
+
+.block-note {
+  margin: 0 0 16px; padding: 12px 14px; border-radius: 13px;
+  background: var(--accent-wash); color: var(--ink-body);
+  font-size: 13px; line-height: 1.55;
+}
+
+/* ===================== ГАЛОЧКИ ВСТАВАНИЯ С ПОЛА ===================== */
+.half { margin: 0 0 16px; }
+.half-title { font-size: 14px; font-weight: 700; margin: 0 0 8px; color: var(--text-home); }
+.checks { display: flex; flex-wrap: wrap; gap: 8px; }
+.check {
+  position: relative; cursor: pointer; font-size: 13px; font-weight: 600;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 999px; padding: 8px 14px; color: var(--muted-home);
+  -webkit-tap-highlight-color: transparent;
+}
+.check input { position: absolute; opacity: 0; pointer-events: none; }
+.check.selected { border-color: var(--accent); background: var(--accent-wash); color: var(--accent-deep); }
+.check:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ===================== ТАЙМЕР ===================== */
+.timer { text-align: center; margin: 0 0 18px; }
+.timer-value {
+  font-size: 40px; font-weight: 800; line-height: 1.1;
+  font-variant-numeric: tabular-nums; color: var(--text-home); margin-bottom: 10px;
+}
+.timer.big .timer-value { font-size: 56px; margin: 18px 0 14px; }
+.timer.running .timer-value { color: var(--accent-deep); }
+
+.rest-kicker { font-size: 12px; font-weight: 700; color: var(--kicker); letter-spacing: .6px; text-transform: uppercase; margin-bottom: 10px; }
+.rest-hint { font-size: 13px; color: var(--muted-home); margin: 0; }
+
+/* ===================== РЕЗУЛЬТАТ ===================== */
+.result-head { text-align: center; padding: 18px 0 6px; }
+.result-kicker { font-size: 13px; font-weight: 600; color: var(--muted-home); margin-bottom: 4px; }
+/* Цифра НЕЙТРАЛЬНЫМ цветом текста: не зелёная и не красная. */
+.result-age { font-size: 76px; font-weight: 800; line-height: 1; color: var(--text-home); font-variant-numeric: tabular-nums; }
+.result-caption { margin-top: 8px; font-size: 16px; font-weight: 700; }
+.result-caption.younger { color: var(--accent-deep); }
+.result-caption.same, .result-caption.older { color: var(--muted-home); }
+.result-verdict { margin-top: 6px; font-size: 14px; color: var(--muted-home); }
+
+.disclaimer {
+  margin: 20px 0; padding: 14px 16px; border-radius: 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  font-size: 13px; line-height: 1.6; color: var(--ink-body);
+}
+
+/* Слабое звено - единственный цветной блок. Тёплый, не тревожный.
+   Красного нет нигде: результат не диагноз. */
+.weak {
+  margin: 0 0 20px; padding: 16px; border-radius: var(--radius);
+  background: var(--accent-wash); border: 1px solid var(--border);
+}
+.weak-kicker { font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--kicker); margin-bottom: 6px; }
+.weak-title { font-size: 17px; font-weight: 800; color: var(--ink-strong); margin-bottom: 6px; }
+.weak-text { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink-body); }
+
+.breakdown-title { font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--kicker); margin-bottom: 10px; }
+.breakdown-list { list-style: none; margin: 0; padding: 0; }
+.breakdown-list li {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 14px; margin-bottom: 8px; border-radius: 13px;
+  background: var(--surface); border: 1px solid var(--border); font-size: 14px;
+}
+.breakdown-name { font-weight: 600; min-width: 0; }
+.breakdown-score { flex: 0 0 auto; font-weight: 700; color: var(--accent-deep); font-variant-numeric: tabular-nums; }
+.breakdown-list li.is-skipped .breakdown-name,
+.breakdown-list li.is-skipped .breakdown-score { color: var(--muted-home); font-weight: 600; }
+
+.result-none { text-align: center; padding: 24px 0 0; }
+
+/* ===================== МОДАЛ ВИДЕО ===================== */
+.video-modal {
+  position: fixed; inset: 0; z-index: 100; background: var(--backdrop);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.video-modal[hidden] { display: none; }
+.video-shell { width: 100%; max-width: var(--maxw); position: relative; }
+.video-close {
+  position: absolute; top: -46px; right: 0;
+  width: 38px; height: 38px; border-radius: 12px; cursor: pointer;
+  background: var(--glass); border: none; color: var(--on-accent); font-size: 20px;
+  display: flex; align-items: center; justify-content: center;
+}
+.video-frame {
+  position: relative; width: 100%; padding-top: 56.25%;
+  background: #000; border-radius: 14px; overflow: hidden;
+}
+.video-frame > div, .video-frame iframe {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;
+}
+.video-error { color: var(--on-accent); font-size: 14px; text-align: center; margin: 12px 0 0; }
