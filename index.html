@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Тема: применяем ДО рендера, чтобы не было вспышки светлого. Дефолт светлый.
+       Ключ тот же, что у app.irenabio.com. В Телеграме домен другой, ключа не будет,
+       поэтому там всегда стартуем со светлой. -->
+  <script>(function(){try{if(localStorage.getItem('irena_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
+  <title>Возраст тела</title>
+  <link rel="stylesheet" href="style.css?v=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css" rel="stylesheet">
+</head>
+<body>
+
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Переключить тему">
+  <i class="ti ti-moon" id="theme-toggle-ic"></i>
+</button>
+
+<!-- ================= ЭКРАН 1: ВХОД ================= -->
+<section class="screen" id="view-intro">
+  <div class="screen-body">
+    <div class="hero-mark"><i class="ti ti-heart-rate-monitor"></i></div>
+    <h1 class="screen-title" id="intro-title"></h1>
+    <p class="screen-lead" id="intro-lead"></p>
+
+    <label class="field">
+      <span class="field-label" id="intro-age-label"></span>
+      <input type="number" id="intro-age" inputmode="numeric" min="18" max="69" placeholder="35">
+    </label>
+    <p class="field-error" id="intro-age-error" hidden></p>
+
+    <fieldset class="opts">
+      <legend class="field-label" id="intro-sex-label"></legend>
+      <div class="opts-row" id="intro-sex"></div>
+    </fieldset>
+
+    <fieldset class="opts">
+      <legend class="field-label" id="intro-who-label"></legend>
+      <div class="opts-row" id="intro-who"></div>
+    </fieldset>
+  </div>
+  <div class="screen-foot">
+    <button type="button" class="btn btn-primary" id="intro-start"></button>
+  </div>
+</section>
+
+<!-- ================= ЭКРАН 2: ПРЕДУПРЕЖДЕНИЕ ================= -->
+<section class="screen" id="view-safety" hidden>
+  <div class="screen-body">
+    <div class="hero-mark warn"><i class="ti ti-shield-check"></i></div>
+    <h1 class="screen-title" id="safety-title"></h1>
+    <p class="screen-text" id="safety-text"></p>
+    <button type="button" class="btn btn-video" id="safety-watch">
+      <i class="ti ti-player-play"></i> <span></span>
+    </button>
+  </div>
+  <div class="screen-foot">
+    <button type="button" class="btn btn-primary" id="safety-start"></button>
+  </div>
+</section>
+
+<!-- ================= ЭКРАН 3: БЛОК ================= -->
+<section class="screen" id="view-block" hidden>
+  <div class="screen-head">
+    <div class="progress-label" id="block-progress"></div>
+    <div class="progress-track"><div class="progress-fill" id="block-progress-fill"></div></div>
+  </div>
+  <div class="screen-body">
+    <div class="block-ic"><i class="ti" id="block-icon"></i></div>
+    <h1 class="screen-title" id="block-title"></h1>
+    <p class="screen-hint" id="block-hint"></p>
+
+    <button type="button" class="btn btn-video" id="block-watch">
+      <i class="ti ti-player-play"></i> <span></span>
+    </button>
+
+    <details class="protocol">
+      <summary id="block-details-label"></summary>
+      <p id="block-protocol"></p>
+    </details>
+
+    <p class="block-note" id="block-note" hidden></p>
+
+    <!-- таймер блока -->
+    <div class="timer" id="block-timer" hidden>
+      <div class="timer-value" id="timer-value">00:00</div>
+      <button type="button" class="btn btn-ghost" id="timer-btn"></button>
+    </div>
+
+    <!-- ввод: одно число -->
+    <label class="field" id="input-single" hidden>
+      <span class="field-label" id="input-single-label"></span>
+      <div class="field-row">
+        <input type="number" id="input-single-value" inputmode="numeric">
+        <span class="field-unit" id="input-single-unit"></span>
+      </div>
+    </label>
+
+    <!-- ввод: пара значений пульса -->
+    <div class="field" id="input-pair" hidden>
+      <div class="pair">
+        <label class="pair-cell">
+          <span class="field-label" id="input-peak-label"></span>
+          <input type="number" id="input-peak" inputmode="numeric">
+        </label>
+        <label class="pair-cell">
+          <span class="field-label" id="input-after-label"></span>
+          <input type="number" id="input-after" inputmode="numeric">
+        </label>
+      </div>
+    </div>
+
+    <!-- ввод: галочки вставания с пола -->
+    <div class="field" id="input-checks" hidden></div>
+
+    <p class="field-error" id="block-error" hidden></p>
+  </div>
+  <div class="screen-foot">
+    <button type="button" class="btn btn-primary" id="block-next"></button>
+    <button type="button" class="btn btn-quiet" id="block-skip"></button>
+  </div>
+</section>
+
+<!-- ================= ЭКРАН: ОБЯЗАТЕЛЬНЫЙ ОТДЫХ ================= -->
+<section class="screen" id="view-rest" hidden>
+  <div class="screen-body center">
+    <div class="rest-kicker" id="rest-kicker"></div>
+    <h1 class="screen-title" id="rest-title"></h1>
+    <p class="screen-text" id="rest-text"></p>
+    <div class="timer big">
+      <div class="timer-value" id="rest-value">02:00</div>
+    </div>
+    <p class="rest-hint" id="rest-hint"></p>
+  </div>
+  <div class="screen-foot">
+    <button type="button" class="btn btn-primary" id="rest-next" disabled></button>
+  </div>
+</section>
+
+<!-- ================= ЭКРАН 10: РЕЗУЛЬТАТ ================= -->
+<section class="screen" id="view-result" hidden>
+  <div class="screen-body">
+    <div class="result-head" id="result-head">
+      <div class="result-kicker" id="result-title"></div>
+      <div class="result-age" id="result-age"></div>
+      <div class="result-caption" id="result-caption"></div>
+      <div class="result-verdict" id="result-verdict"></div>
+    </div>
+
+    <div class="result-none" id="result-none" hidden>
+      <h1 class="screen-title" id="result-none-title"></h1>
+      <p class="screen-text" id="result-none-text"></p>
+    </div>
+
+    <p class="disclaimer" id="result-disclaimer"></p>
+
+    <div class="weak" id="result-weak" hidden>
+      <div class="weak-kicker" id="weak-kicker"></div>
+      <div class="weak-title" id="weak-title"></div>
+      <p class="weak-text" id="weak-text"></p>
+    </div>
+
+    <div class="breakdown">
+      <div class="breakdown-title" id="breakdown-title"></div>
+      <ul class="breakdown-list" id="breakdown-list"></ul>
+    </div>
+  </div>
+  <div class="screen-foot">
+    <button type="button" class="btn btn-ghost" id="result-restart"></button>
+  </div>
+</section>
+
+<!-- ================= МОДАЛ ВИДЕО ================= -->
+<div class="video-modal" id="video-modal" hidden>
+  <div class="video-shell">
+    <button type="button" class="video-close" id="video-close" aria-label="Закрыть">
+      <i class="ti ti-x"></i>
+    </button>
+    <div class="video-frame"><div id="kinescope-player"></div></div>
+    <p class="video-error" id="video-error" hidden></p>
+  </div>
+</div>
+
+<script src="config.js?v=1"></script>
+<script src="calc.js?v=1"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>
