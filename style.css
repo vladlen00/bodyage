@@ -65,6 +65,11 @@
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
+/* Атрибут hidden обязан побеждать любые наши display. Без этого правила
+   .field { display: block } перебивает браузерное [hidden] { display: none }
+   (авторские стили сильнее браузерных), и скрытые контейнеры ввода
+   показываются все разом. */
+[hidden] { display: none !important; }
 body {
   margin: 0; background: var(--bg); color: var(--text-home);
   font-family: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
