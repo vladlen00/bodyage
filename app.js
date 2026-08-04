@@ -400,8 +400,9 @@ function showScreen(id) {
   // упражнение, а Ирена продолжала говорить из телефона.
   closeVideo();
 
-  ["view-intro", "view-safety", "view-block", "view-rest", "view-result"]
-    .forEach(v => { $(v).hidden = (v !== id); });
+  // Скрываем ВСЕ экраны, а не список из пяти: гейт, блокировка и
+  // продолжение замера тоже .screen, и они обязаны уходить.
+  document.querySelectorAll(".screen").forEach(el => { el.hidden = el.id !== id; });
   const body = document.querySelector("#" + id + " .screen-body");
   if (body) body.scrollTop = 0;
   // У .screen стоит min-height: 100dvh, поэтому на длинном содержимом растёт
@@ -555,6 +556,9 @@ function goToBlock() {
   // жеста: подтверждаем разблокировку звука здесь, чтобы экран паузы с его
   // автостартом таймера был прикрыт независимо от того, откуда пришли.
   primeAudio();
+  // Черновик пишется на каждом переходе между блоками: если тест бросят на
+  // середине, потеряется максимум один блок.
+  saveDraftQuietly();
 
   if (state.index >= BLOCKS.length) { finish(); return; }
   const block = BLOCKS[state.index];
@@ -917,6 +921,8 @@ function finish() {
   restTimer.stop();
   state.showSkipNote = false;
   releaseWakeLock();
+  // Черновик догоняет и дозаполненные блоки: сюда приходят обе дороги.
+  saveDraftQuietly();
   renderResult(computeResult(state.answers, state.profile));
   showScreen("view-result");
 }
@@ -1009,6 +1015,15 @@ function renderResult(r) {
   });
 
   $("result-restart").textContent = TEXTS.result.restart;
+
+  // Кнопка сохранения возвращается в исходное состояние на каждый пересчёт:
+  // после дозаполнения пропущенного блока сохранять надо заново.
+  lastResult = r;
+  const saveBtn = $("result-save");
+  saveBtn.hidden = false;
+  saveBtn.disabled = false;
+  saveBtn.textContent = TEXTS.save.button;
+  $("result-save-state").hidden = true;
 }
 
 $("result-restart").addEventListener("click", () => {
@@ -1022,6 +1037,160 @@ $("result-restart").addEventListener("click", () => {
   state.showSkipNote = false;
   showScreen("view-intro");
 });
+
+// ==========================================================================
+// ЧЕРНОВИК И СОХРАНЕНИЕ
+// ==========================================================================
+// Черновик нужен потому, что пульс покоя меряется утром лёжа, а тест женщина
+// открывает днём. Без него она либо соврёт себе цифру, либо бросит на первом
+// блоке.
+
+// Готовый замер, который не удалось отправить. Лежит на телефоне до
+// следующего живого входа.
+const PENDING_KEY = "bodyage_pending_measurement";
+
+let lastResult = null;   // последний посчитанный результат, его и сохраняем
+
+function currentSubject() {
+  return state.profile.who === "other" ? "guest" : "self";
+}
+
+// Ответы ровно по семи блокам: функция требует полный набор ключей.
+function answersForSave() {
+  const out = {};
+  BLOCKS.forEach(b => {
+    out[b.id] = state.answers[b.id] === undefined ? null : state.answers[b.id];
+  });
+  return out;
+}
+
+function draftPayload() {
+  return {
+    subject: currentSubject(),
+    age: state.profile.age,
+    sex: state.profile.sex,
+    answers: state.answers,
+    block_index: Math.min(state.index, BLOCKS.length),
+  };
+}
+
+// Черновик пишется молча и на любой сбой отвечает молчанием: это подстраховка,
+// а не часть теста. Уронить прохождение из-за неудавшегося сохранения нельзя.
+function saveDraftQuietly() {
+  if (!state.profile.age || !state.profile.sex) return;
+  try {
+    BodyAgeApi.draftSave(draftPayload())
+      .catch(e => console.error("draft_save:", e.message));
+  } catch (e) {
+    console.error("draft_save:", e);
+  }
+}
+
+function measurementPayload(r) {
+  const scores = {};
+  r.perBlock.forEach(b => { scores[b.id] = b.skipped ? null : b.score; });
+  return {
+    subject: currentSubject(),
+    age: state.profile.age,
+    sex: state.profile.sex,
+    answers: answersForSave(),
+    scores,
+    completed_blocks: r.completed,
+    score_sum: r.sum,
+    equivalent: r.hasAge ? r.equivalent : null,
+    has_age: r.hasAge,
+    body_age: r.hasAge ? r.bodyAge : null,
+    shift: r.hasAge ? r.shift : null,
+    weakest_block: r.weakest ? r.weakest.id : null,
+    config_version: CONFIG_VERSION,
+  };
+}
+
+function stashPending(payload) {
+  try { localStorage.setItem(PENDING_KEY, JSON.stringify(payload)); } catch (e) {}
+}
+function clearPending() {
+  try { localStorage.removeItem(PENDING_KEY); } catch (e) {}
+}
+
+// Отложенный замер уходит при первом же живом входе, молча.
+async function flushPending() {
+  let raw = null;
+  try { raw = localStorage.getItem(PENDING_KEY); } catch (e) { return; }
+  if (!raw) return;
+  try {
+    await BodyAgeApi.save(JSON.parse(raw));
+    clearPending();
+  } catch (e) {
+    console.error("отложенный замер не ушёл:", e.message);
+  }
+}
+
+async function saveMeasurement() {
+  if (!lastResult) return;
+  const btn = $("result-save");
+  const st = $("result-save-state");
+  const payload = measurementPayload(lastResult);
+
+  btn.disabled = true;
+  st.hidden = false;
+  st.className = "save-state";
+  st.textContent = TEXTS.save.saving;
+
+  try {
+    await BodyAgeApi.save(payload);
+    clearPending();
+    st.className = "save-state ok";
+    st.textContent = currentSubject() === "guest" ? TEXTS.save.savedGuest : TEXTS.save.saved;
+    btn.hidden = true;
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = TEXTS.save.retry;
+    // Токен мог протухнуть прямо посреди теста: на вебе он живёт 15 минут.
+    // Замер при этом не теряется, он ждёт на телефоне.
+    if (e.message === "token_expired" || e.message === "no_token") {
+      stashPending(payload);
+      st.textContent = TEXTS.save.expired;
+    } else {
+      st.textContent = TEXTS.save.error;
+    }
+  }
+}
+
+// ==========================================================================
+// ЭКРАН НЕЗАКОНЧЕННОГО ЗАМЕРА
+// ==========================================================================
+
+function renderResume(draft) {
+  const done = Object.keys(draft.answers || {}).length;
+  $("resume-title").textContent = TEXTS.resume.title;
+  $("resume-text").textContent = TEXTS.resume.text;
+  $("resume-progress").textContent = TEXTS.resume.progress
+    .replace("{done}", done).replace("{total}", BLOCKS.length);
+
+  const started = draft.started_at ? new Date(draft.started_at) : null;
+  const days = started ? Math.floor((Date.now() - started.getTime()) / 86400000) : 0;
+  $("resume-when").textContent = days < 1
+    ? TEXTS.resume.whenToday
+    : TEXTS.resume.whenDays.replace("{n}", days).replace("{days}", daysWord(days));
+
+  $("resume-continue").textContent = TEXTS.resume.continue;
+  $("resume-restart").textContent = TEXTS.resume.restart;
+
+  $("resume-continue").onclick = () => {
+    state.profile.age = draft.age;
+    state.profile.sex = draft.sex;
+    state.profile.who = draft.subject === "guest" ? "other" : "self";
+    state.answers = draft.answers || {};
+    state.index = Math.min(draft.block_index || 0, BLOCKS.length);
+    goToBlock();
+  };
+
+  $("resume-restart").onclick = () => {
+    try { BodyAgeApi.draftDrop({ subject: draft.subject || "self" }); } catch (e) {}
+    showScreen("view-intro");
+  };
+}
 
 // ==========================================================================
 // ОБЩЕЕ
@@ -1040,7 +1209,37 @@ window.addEventListener("popstate", () => {
   if (videoOpen) closeVideo(true);
 });
 
-document.title = TEXTS.appTitle;
-renderIntro();
-renderSafety();
-showScreen("view-intro");
+$("result-save").addEventListener("click", saveMeasurement);
+
+// ==========================================================================
+// СТАРТ
+// ==========================================================================
+// Гейт первым делом: без доступа не должно отрисоваться ничего, кроме
+// экрана блокировки. Дальше отложенный замер и предложение продолжить.
+
+(async function init() {
+  document.title = TEXTS.appTitle;
+  renderIntro();
+  renderSafety();
+
+  const allowed = await IrenaAuth.checkAccess();
+  if (!allowed) return;      // экран показал auth.js
+
+  flushPending();            // молча и не дожидаясь
+
+  let draft = null;
+  try {
+    const data = await BodyAgeApi.draftGet({ subject: "self" });
+    draft = data && data.draft;
+  } catch (e) {
+    // Черновик не критичен: не смогли прочитать - начинаем с чистого листа.
+    console.error("draft_get:", e.message);
+  }
+
+  if (draft && draft.answers && Object.keys(draft.answers).length > 0) {
+    renderResume(draft);
+    showScreen("view-resume");
+    return;
+  }
+  showScreen("view-intro");
+})();

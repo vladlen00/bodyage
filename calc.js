@@ -180,6 +180,16 @@ function yearsWord(n) {
   return YEARS_FORMS[2];
 }
 
+// Склонение слова "день" для строки про начатый замер.
+function daysWord(n) {
+  const a = Math.abs(n) % 100;
+  const b = a % 10;
+  if (a > 10 && a < 20) return DAYS_FORMS[2];
+  if (b === 1) return DAYS_FORMS[0];
+  if (b > 1 && b < 5) return DAYS_FORMS[1];
+  return DAYS_FORMS[2];
+}
+
 // answers: { blockId: answer | null }. Пропущенный блок = null.
 // profile: { age, sex }.
 function computeResult(answers, profile) {

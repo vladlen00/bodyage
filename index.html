@@ -8,7 +8,7 @@
        поэтому там всегда стартуем со светлой. -->
   <script>(function(){try{if(localStorage.getItem('irena_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
   <title>Возраст тела</title>
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=8">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -19,6 +19,49 @@
 <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Переключить тему">
   <i class="ti ti-moon" id="theme-toggle-ic"></i>
 </button>
+
+<!-- ================= ЭКРАН: ПРОВЕРКА ДОСТУПА =================
+     Показывается только на время серверной проверки веб-токена. -->
+<section class="screen" id="view-gate" hidden>
+  <div class="screen-body center">
+    <div class="hero-mark"><i class="ti ti-shield-lock"></i></div>
+    <h1 class="screen-title" id="gate-title"></h1>
+    <p class="screen-text" id="gate-text"></p>
+  </div>
+</section>
+
+<!-- ================= ЭКРАН: ДОСТУПА НЕТ =================
+     Один экран на два случая: подписки нет и до сервера не достучались.
+     Отличаются иконкой, текстом и кнопкой. -->
+<section class="screen" id="view-blocked" hidden>
+  <div class="screen-body center">
+    <div class="hero-mark warn"><i class="ti ti-lock" id="blocked-icon"></i></div>
+    <h1 class="screen-title" id="blocked-title"></h1>
+    <p class="screen-text" id="blocked-text"></p>
+  </div>
+  <div class="screen-foot">
+    <a class="btn btn-primary" id="blocked-cta" href="#"></a>
+    <button type="button" class="btn btn-primary" id="blocked-retry" hidden></button>
+    <div class="tech-reason" id="blocked-reason"></div>
+  </div>
+</section>
+
+<!-- ================= ЭКРАН: НЕЗАКОНЧЕННЫЙ ЗАМЕР ================= -->
+<section class="screen" id="view-resume" hidden>
+  <div class="screen-body">
+    <div class="hero-mark"><i class="ti ti-player-play"></i></div>
+    <h1 class="screen-title" id="resume-title"></h1>
+    <p class="screen-text" id="resume-text"></p>
+    <div class="resume-card">
+      <div class="resume-line" id="resume-progress"></div>
+      <div class="resume-line muted" id="resume-when"></div>
+    </div>
+  </div>
+  <div class="screen-foot">
+    <button type="button" class="btn btn-primary" id="resume-continue"></button>
+    <button type="button" class="btn btn-quiet" id="resume-restart"></button>
+  </div>
+</section>
 
 <!-- ================= ЭКРАН 1: ВХОД ================= -->
 <section class="screen" id="view-intro">
@@ -177,6 +220,8 @@
     </div>
   </div>
   <div class="screen-foot">
+    <button type="button" class="btn btn-primary" id="result-save"></button>
+    <p class="save-state" id="result-save-state" hidden></p>
     <button type="button" class="btn btn-ghost" id="result-restart"></button>
   </div>
 </section>
@@ -192,8 +237,10 @@
   </div>
 </div>
 
-<script src="config.js?v=5"></script>
+<script src="telegram-web-app.js"></script>
+<script src="config.js?v=6"></script>
 <script src="calc.js?v=2"></script>
-<script src="app.js?v=6"></script>
+<script src="auth.js?v=1"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>

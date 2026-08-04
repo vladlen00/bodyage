@@ -314,6 +314,28 @@ input[type=number] { -moz-appearance: textfield; }
 
 .result-none { text-align: center; padding: 24px 0 0; }
 
+/* ===================== ДОСТУП И ЧЕРНОВИК ===================== */
+/* Служебная причина отказа: женщине не нужна, поддержке экономит полчаса. */
+.tech-reason {
+  margin-top: 10px; text-align: center;
+  font-size: 10px; color: var(--muted-home); opacity: .35;
+}
+#blocked-cta { text-decoration: none; }
+
+.resume-card {
+  margin: 4px 0 0; padding: 14px 16px; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--border);
+}
+.resume-line { font-size: 15px; font-weight: 700; color: var(--text-home); }
+.resume-line.muted { margin-top: 4px; font-size: 13px; font-weight: 600; color: var(--muted-home); }
+
+/* Строка состояния под кнопкой сохранения. */
+.save-state {
+  margin: 10px 2px 0; font-size: 13px; line-height: 1.5; color: var(--muted-home);
+  text-align: center;
+}
+.save-state.ok { color: var(--success); font-weight: 600; }
+
 /* ===================== МОДАЛ ВИДЕО ===================== */
 .video-modal {
   position: fixed; inset: 0; z-index: 100; background: var(--backdrop);
