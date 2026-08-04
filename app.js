@@ -440,6 +440,13 @@ const state = {
 
 function $(id) { return document.getElementById(id); }
 
+// Экраны, где тумблер темы виден. На блоках и паузе его НЕТ: он висит ровно
+// там, куда идёт палец к кнопкам самого Телеграма, и на живом проходе его
+// задели случайно. Блоки это большая часть теста, значит и почти все шансы
+// промахнуться. На входе и результате цена ошибки мала: там сразу видно,
+// что произошло, и можно вернуть обратно.
+const THEME_TOGGLE_SCREENS = ["view-intro", "view-safety", "view-resume", "view-result"];
+
 function showScreen(id) {
   // ЛЮБАЯ смена экрана гасит видео. Раньше пауза висела только на крестике,
   // и всё остальное её обходило: "Дальше", "Назад", "Пропустить блок",
@@ -450,6 +457,7 @@ function showScreen(id) {
   // Скрываем ВСЕ экраны, а не список из пяти: гейт, блокировка и
   // продолжение замера тоже .screen, и они обязаны уходить.
   document.querySelectorAll(".screen").forEach(el => { el.hidden = el.id !== id; });
+  $("theme-toggle").hidden = !THEME_TOGGLE_SCREENS.includes(id);
   const body = document.querySelector("#" + id + " .screen-body");
   if (body) body.scrollTop = 0;
   // У .screen стоит min-height: 100dvh, поэтому на длинном содержимом растёт
