@@ -126,7 +126,14 @@ body.no-scroll { overflow: hidden; }
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ===================== ПРОГРЕСС ===================== */
+/* ===================== ПРОГРЕСС =====================
+   Тумблер темы прибит к правому верхнему углу ОКНА, а колонка экрана
+   центрована и не шире 560px. Пока окно уже 628px, правый край колонки
+   заезжает под тумблер и он накрывает конец полосы прогресса. Отдаём ему
+   место справа; на широком экране колонка до тумблера уже не достаёт. */
+@media (max-width: 628px) {
+  .screen-head { padding-right: 46px; }
+}
 .progress-label { font-size: 12px; font-weight: 600; color: var(--kicker); letter-spacing: .5px; text-transform: uppercase; margin-bottom: 8px; }
 .progress-track { height: 4px; border-radius: 999px; background: var(--track); overflow: hidden; }
 .progress-fill { height: 100%; border-radius: 999px; background: var(--accent-grad-h); transition: width .25s; }
