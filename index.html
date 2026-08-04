@@ -8,7 +8,7 @@
        поэтому там всегда стартуем со светлой. -->
   <script>(function(){try{if(localStorage.getItem('irena_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
   <title>Возраст тела</title>
-  <link rel="stylesheet" href="style.css?v=5">
+  <link rel="stylesheet" href="style.css?v=6">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -29,7 +29,7 @@
 
     <label class="field">
       <span class="field-label" id="intro-age-label"></span>
-      <input type="number" id="intro-age" inputmode="numeric" min="18" max="69" placeholder="35">
+      <input type="number" id="intro-age" inputmode="numeric" min="18" max="69">
     </label>
     <p class="field-error" id="intro-age-error" hidden></p>
 
@@ -118,6 +118,11 @@
     <!-- ввод: галочки вставания с пола -->
     <div class="field" id="input-checks" hidden></div>
 
+    <!-- подпись под полями ввода: как считать. Не в раскрывашке -->
+    <p class="input-note" id="input-note" hidden></p>
+    <!-- мягкая подсказка: похоже на ошибку, но дальше пускаем -->
+    <p class="soft-hint" id="block-soft" hidden></p>
+
     <p class="field-error" id="block-error" hidden></p>
   </div>
   <div class="screen-foot">
@@ -152,7 +157,6 @@
       <div class="result-kicker" id="result-title"></div>
       <div class="result-age" id="result-age"></div>
       <div class="result-caption" id="result-caption"></div>
-      <div class="result-verdict" id="result-verdict"></div>
     </div>
 
     <div class="result-none" id="result-none" hidden>
@@ -189,8 +193,8 @@
   </div>
 </div>
 
-<script src="config.js?v=3"></script>
+<script src="config.js?v=4"></script>
 <script src="calc.js?v=1"></script>
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

@@ -180,6 +180,15 @@ body.no-scroll { overflow: hidden; }
 .field-row { display: flex; align-items: center; gap: 10px; }
 .field-unit { font-size: 14px; color: var(--muted-home); flex: 0 0 auto; }
 .field-error { color: var(--accent-deep); font-size: 13px; margin: 0 2px 12px; }
+/* Подпись под полями: как считать. Спокойная, это часть инструкции. */
+.input-note { color: var(--muted-home); font-size: 13px; margin: -6px 2px 12px; }
+/* Мягкая подсказка: похоже на ошибку, но проход не блокирует, поэтому
+   заливка, а не красный текст. */
+.soft-hint {
+  margin: 0 0 12px; padding: 10px 12px; border-radius: 12px;
+  background: var(--accent-wash); color: var(--ink-body);
+  font-size: 13px; line-height: 1.5;
+}
 
 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .pair-cell { display: block; }
@@ -259,7 +268,6 @@ input[type=number] { -moz-appearance: textfield; }
 .result-caption { margin-top: 8px; font-size: 16px; font-weight: 700; }
 .result-caption.younger { color: var(--accent-deep); }
 .result-caption.same, .result-caption.older { color: var(--muted-home); }
-.result-verdict { margin-top: 6px; font-size: 14px; color: var(--muted-home); }
 
 .disclaimer {
   margin: 20px 0; padding: 14px 16px; border-radius: 14px;

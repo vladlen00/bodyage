@@ -251,6 +251,7 @@ function renderIntro() {
   $("intro-sex-label").textContent = TEXTS.intro.sexLabel;
   $("intro-who-label").textContent = TEXTS.intro.whoLabel;
   $("intro-start").textContent = TEXTS.intro.start;
+  $("intro-age").placeholder = TEXTS.intro.agePlaceholder;
   $("intro-age").min = LIMITS.entryAgeMin;
   $("intro-age").max = LIMITS.entryAgeMax;
 
@@ -484,6 +485,10 @@ function renderSubstep(block) {
     .replace("{label}", half.label);
   sub.hidden = false;
   back.hidden = state.floorStep === 0;
+
+  // У каждого шага своя подсказка: на втором экране висела строка "сядь на
+  // пол и встань обратно", хотя к этому моменту это уже сделано.
+  if (half.hint) $("block-hint").textContent = half.hint;
 }
 
 function renderInputs(block) {
@@ -493,6 +498,17 @@ function renderInputs(block) {
   const checks = $("input-checks");
 
   single.hidden = true; pair.hidden = true; checks.hidden = true;
+  $("block-soft").hidden = true;
+
+  // Подпись под полями: как именно считать. Живёт у полей, а не за
+  // раскрывашкой "Подробнее", в которую никто не заглядывает.
+  const note = $("input-note");
+  if (block.inputNote) {
+    note.textContent = block.inputNote;
+    note.hidden = false;
+  } else {
+    note.hidden = true;
+  }
 
   if (cfg.input === "pulse_pair") {
     pair.hidden = false;
@@ -562,6 +578,27 @@ function reflectFloorChecks(cfg) {
     if (input) input.checked = on;
   });
 }
+
+// Мягкая подсказка про непомноженный пульс. Женщина считает удары за 15
+// секунд и вписывает 35 вместо 140, получая "падение 25+" ни за что.
+// Подсказка живёт на вводе, а не на кнопке "Дальше": показать её в момент
+// перехода бессмысленно, экран уже сменится. Проход она не блокирует.
+function reflectPulseSoftHint() {
+  const cfg = SCORING[BLOCKS[state.index].id];
+  const box = $("block-soft");
+  if (!cfg || cfg.softBelow === undefined) { box.hidden = true; return; }
+
+  const low = ["input-peak", "input-after"].some(id => {
+    const v = parseInt($(id).value, 10);
+    return Number.isInteger(v) && v < cfg.softBelow;
+  });
+  box.textContent = TEXTS.block.pulseSoftHint;
+  box.hidden = !low;
+}
+
+["input-peak", "input-after"].forEach(id => {
+  $(id).addEventListener("input", reflectPulseSoftHint);
+});
 
 // Сбор ответа. Возвращает { ok: true, value } или { ok: false }.
 function collectAnswer(block) {
@@ -663,7 +700,10 @@ function renderResult(r) {
     none.hidden = true;
     $("result-title").textContent = TEXTS.result.title;
     $("result-age").textContent = r.bodyAge;
-    $("result-verdict").textContent = r.title;
+    // Строка вердикта из AGE_SHIFT снята с экрана: она дублировала подпись
+    // под цифрой слово в слово ("соответствует возрасту" и "Тело
+    // соответствует возрасту"). В конфиге title остался, он ещё пригодится
+    // в сохранённом замере.
 
     const cap = $("result-caption");
     const n = Math.abs(r.shift);
