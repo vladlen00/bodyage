@@ -92,8 +92,14 @@ body.no-scroll { overflow: hidden; }
 .screen-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-top: 8px; }
 .screen-body.center { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .screen-foot { flex: 0 0 auto; padding-top: 12px; }
+/* "Назад" и "Пропустить блок" в одну строку. Когда "Назад" скрыт, пропуск
+   занимает всю ширину и подвал выглядит ровно как раньше. */
+.foot-row { display: flex; gap: 8px; }
+.foot-row .btn { flex: 1 1 0; min-width: 0; }
 
 .screen-title { font-size: 26px; font-weight: 800; line-height: 1.15; margin: 0 0 8px; }
+/* Подзаголовок внутреннего шага блока. */
+.block-substep { font-size: 15px; font-weight: 700; color: var(--accent-deep); margin: 0 0 10px; }
 .screen-lead { color: var(--muted-home); margin: 0 0 22px; font-size: 15px; }
 .screen-text { color: var(--ink-body); margin: 0 0 18px; font-size: 15px; }
 .screen-hint { color: var(--muted-home); margin: 0 0 16px; font-size: 15px; }
@@ -208,10 +214,10 @@ input[type=number] { -moz-appearance: textfield; }
   font-size: 13px; line-height: 1.55;
 }
 
-/* ===================== ГАЛОЧКИ ВСТАВАНИЯ С ПОЛА ===================== */
-.half { margin: 0 0 16px; }
-.half-title { font-size: 14px; font-weight: 700; margin: 0 0 8px; color: var(--text-home); }
-.checks { display: flex; flex-wrap: wrap; gap: 8px; }
+/* ===================== ГАЛОЧКИ ВСТАВАНИЯ С ПОЛА =====================
+   На экране одна половина за раз, её название стоит подзаголовком выше,
+   поэтому отдельной подписи над списком нет. */
+.checks { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
 .check {
   position: relative; cursor: pointer; font-size: 13px; font-weight: 600;
   background: var(--surface); border: 1.5px solid var(--border);
@@ -235,6 +241,10 @@ input[type=number] { -moz-appearance: textfield; }
 .rest-hint { font-size: 13px; color: var(--muted-home); margin: 0; }
 
 /* ===================== РЕЗУЛЬТАТ ===================== */
+/* Тумблер темы прибит к правому верхнему углу окна и на узком экране накрывал
+   первую строку результата: на 320px заголовок "Возраст тела пока не считаем"
+   уезжал прямо под кнопку. Отдаём тумблеру полосу сверху. */
+#view-result .screen-body { padding-top: 42px; }
 .result-head { text-align: center; padding: 18px 0 6px; }
 .result-kicker { font-size: 13px; font-weight: 600; color: var(--muted-home); margin-bottom: 4px; }
 /* Цифра НЕЙТРАЛЬНЫМ цветом текста: не зелёная и не красная. */

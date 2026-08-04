@@ -8,7 +8,7 @@
        поэтому там всегда стартуем со светлой. -->
   <script>(function(){try{if(localStorage.getItem('irena_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
   <title>Возраст тела</title>
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -72,6 +72,7 @@
   <div class="screen-body">
     <div class="block-ic"><i class="ti" id="block-icon"></i></div>
     <h1 class="screen-title" id="block-title"></h1>
+    <div class="block-substep" id="block-substep" hidden></div>
     <p class="screen-hint" id="block-hint"></p>
 
     <button type="button" class="btn btn-video" id="block-watch">
@@ -121,7 +122,10 @@
   </div>
   <div class="screen-foot">
     <button type="button" class="btn btn-primary" id="block-next"></button>
-    <button type="button" class="btn btn-quiet" id="block-skip"></button>
+    <div class="foot-row">
+      <button type="button" class="btn btn-quiet" id="block-back" hidden></button>
+      <button type="button" class="btn btn-quiet" id="block-skip"></button>
+    </div>
   </div>
 </section>
 
@@ -185,8 +189,8 @@
   </div>
 </div>
 
-<script src="config.js?v=1"></script>
+<script src="config.js?v=2"></script>
 <script src="calc.js?v=1"></script>
-<script src="app.js?v=2"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>

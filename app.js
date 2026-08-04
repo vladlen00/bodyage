@@ -223,6 +223,7 @@ const state = {
   profile: { age: null, sex: null, who: "self" },
   answers: {},                        // blockId -> ответ или null при пропуске
   floor: { descent: [], rise: [] },   // текущие галочки вставания с пола
+  floorStep: 0,                       // какая половина блока с галочками на экране
   index: 0,                           // индекс блока в BLOCKS
 };
 
@@ -370,9 +371,13 @@ function showRest(cfg, blockIndex) {
 }
 
 // Переход к блоку по state.index с учётом обязательной паузы перед ним.
+// Вход в блок ВСЕГДА с нуля: галочки и внутренний шаг сбрасываются здесь,
+// а не в renderBlock, потому что renderBlock зовут ещё и на "Назад".
 function goToBlock() {
   if (state.index >= BLOCKS.length) { finish(); return; }
   const block = BLOCKS[state.index];
+  state.floor = { descent: [], rise: [] };
+  state.floorStep = 0;
   const rest = REST_BEFORE[block.id];
   if (rest && !state.restDone) {
     state.restDone = true;
@@ -413,7 +418,10 @@ function renderBlock(i) {
   document.querySelector(".protocol").open = false;   // всегда свёрнута
   $("block-next").textContent = TEXTS.block.next;
   $("block-skip").textContent = TEXTS.block.skip;
+  $("block-back").textContent = TEXTS.block.back;
   $("block-error").hidden = true;
+
+  renderSubstep(block);
 
   // Пометка про фазу цикла - только женщинам.
   const note = $("block-note");
@@ -452,6 +460,32 @@ function renderBlock(i) {
   renderInputs(block);
 }
 
+// Подзаголовок внутреннего шага и кнопка "Назад".
+// Блок с галочками разбит на два экрана: женщина отмечает по памяти сразу
+// после упражнения, и если половина списка ушла за край экрана, она про неё
+// забудет и завысит себе балл. Прогресс сверху при этом НЕ меняется: для
+// проходящей это один блок, "Блок 7 из 7" на обоих экранах.
+function renderSubstep(block) {
+  const cfg = SCORING[block.id];
+  const sub = $("block-substep");
+  const back = $("block-back");
+  const split = cfg.input === "checkboxes" && cfg.halves.length > 1;
+
+  if (!split) {
+    sub.hidden = true;
+    back.hidden = true;
+    return;
+  }
+
+  const half = cfg.halves[state.floorStep];
+  sub.textContent = TEXTS.block.substep
+    .replace("{n}", state.floorStep + 1)
+    .replace("{total}", cfg.halves.length)
+    .replace("{label}", half.label);
+  sub.hidden = false;
+  back.hidden = state.floorStep === 0;
+}
+
 function renderInputs(block) {
   const cfg = SCORING[block.id];
   const single = $("input-single");
@@ -469,9 +503,10 @@ function renderInputs(block) {
     return;
   }
 
+  // Отметки НЕ сбрасываем: сброс живёт в goToBlock, иначе "Назад" на первый
+  // экран блока стирал бы уже проставленные галочки.
   if (cfg.input === "checkboxes") {
     checks.hidden = false;
-    state.floor = { descent: [], rise: [] };
     renderFloorChecks(cfg);
     return;
   }
@@ -482,50 +517,40 @@ function renderInputs(block) {
   $("input-single-value").value = "";
 }
 
-// Галочки вставания с пола. Взаимоисключение считает calc.js по флагу
-// exclusive, здесь только перерисовка.
+// Галочки вставания с пола. На экране ТОЛЬКО текущая половина: её название
+// стоит подзаголовком под заголовком блока, поэтому подписи над списком нет.
+// Взаимоисключение считает calc.js по флагу exclusive, здесь только отрисовка.
 function renderFloorChecks(cfg) {
   const host = $("input-checks");
+  const half = cfg.halves[state.floorStep];
   host.innerHTML = "";
 
-  cfg.halves.forEach(half => {
-    const wrap = document.createElement("div");
-    wrap.className = "half";
+  const row = document.createElement("div");
+  row.className = "checks";
 
-    const title = document.createElement("div");
-    title.className = "half-title";
-    title.textContent = half.label;
-    wrap.appendChild(title);
+  cfg.penalties.forEach(p => {
+    const label = document.createElement("label");
+    label.className = "check";
+    label.dataset.half = half.id;
+    label.dataset.option = p.id;
 
-    const row = document.createElement("div");
-    row.className = "checks";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    const span = document.createElement("span");
+    span.textContent = p.label;
+    label.appendChild(input);
+    label.appendChild(span);
 
-    cfg.penalties.forEach(p => {
-      const label = document.createElement("label");
-      label.className = "check";
-      label.dataset.half = half.id;
-      label.dataset.option = p.id;
-
-      const input = document.createElement("input");
-      input.type = "checkbox";
-      const span = document.createElement("span");
-      span.textContent = p.label;
-      label.appendChild(input);
-      label.appendChild(span);
-
-      label.addEventListener("click", e => {
-        e.preventDefault();
-        state.floor[half.id] = toggleFloorRiseOption(state.floor[half.id], p.id, cfg);
-        reflectFloorChecks(cfg);
-      });
-
-      row.appendChild(label);
+    label.addEventListener("click", e => {
+      e.preventDefault();
+      state.floor[half.id] = toggleFloorRiseOption(state.floor[half.id], p.id, cfg);
+      reflectFloorChecks(cfg);
     });
 
-    wrap.appendChild(row);
-    host.appendChild(wrap);
+    row.appendChild(label);
   });
 
+  host.appendChild(row);
   reflectFloorChecks(cfg);
 }
 
@@ -566,6 +591,26 @@ $("block-watch").addEventListener("click", () => {
 
 $("block-next").addEventListener("click", () => {
   const block = BLOCKS[state.index];
+  const cfg = SCORING[block.id];
+
+  // Блок с галочками идёт по половинам: сначала посадка, потом подъём.
+  // Пока половины не кончились, "Дальше" ведёт на следующий шаг того же блока.
+  if (cfg.input === "checkboxes") {
+    const half = cfg.halves[state.floorStep];
+    if (!(state.floor[half.id] || []).length) {
+      $("block-error").textContent = TEXTS.block.checksError;
+      $("block-error").hidden = false;
+      return;
+    }
+    if (state.floorStep < cfg.halves.length - 1) {
+      state.floorStep += 1;
+      renderBlock(state.index);
+      $("view-block").querySelector(".screen-body").scrollTop = 0;
+      window.scrollTo(0, 0);
+      return;
+    }
+  }
+
   const res = collectAnswer(block);
   if (!res.ok) {
     $("block-error").textContent = TEXTS.block.inputError;
@@ -578,7 +623,18 @@ $("block-next").addEventListener("click", () => {
   goToBlock();
 });
 
+// Назад по внутренним шагам блока. Отметки прошлого шага остаются на месте:
+// state.floor чистится только на входе в блок, в goToBlock.
+$("block-back").addEventListener("click", () => {
+  if (state.floorStep === 0) return;
+  state.floorStep -= 1;
+  renderBlock(state.index);
+  $("view-block").querySelector(".screen-body").scrollTop = 0;
+  window.scrollTo(0, 0);
+});
+
 // Пропуск не штрафуется: причины бывают честные, поэтому просто null.
+// Пропускается блок ЦЕЛИКОМ, вместе со вторым внутренним шагом.
 $("block-skip").addEventListener("click", () => {
   blockTimer.stop();
   state.answers[BLOCKS[state.index].id] = null;
@@ -628,7 +684,10 @@ function renderResult(r) {
     $("result-none-text").textContent = TEXTS.result.notEnoughText;
   }
 
+  // Дисклеймер объясняет цифру возраста. Пропущено больше двух блоков -
+  // цифры на экране нет, значит и объяснять нечего.
   $("result-disclaimer").textContent = TEXTS.result.disclaimer;
+  $("result-disclaimer").hidden = !r.hasAge;
 
   const weak = $("result-weak");
   if (r.weakest) {
@@ -668,6 +727,7 @@ function renderResult(r) {
 $("result-restart").addEventListener("click", () => {
   state.answers = {};
   state.floor = { descent: [], rise: [] };
+  state.floorStep = 0;
   state.index = 0;
   state.restDone = false;
   showScreen("view-intro");
