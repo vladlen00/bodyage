@@ -180,25 +180,41 @@ body.no-scroll { overflow: hidden; }
 .field-row { display: flex; align-items: center; gap: 10px; }
 .field-unit { font-size: 14px; color: var(--muted-home); flex: 0 0 auto; }
 .field-error { color: var(--accent-deep); font-size: 13px; margin: 0 2px 12px; }
-/* Мягкая подсказка: похоже на ошибку, но проход не блокирует, поэтому
-   красного нет нигде. Заметность даётся плотной заливкой, полосой слева,
-   иконкой и полужирной первой фразой, а не тревожным цветом. */
+/* Одно место под полями на две роли. Геометрия общая, чтобы экран не
+   дёргался при переключении: в норме спокойный пересчёт, при подозрении
+   заметная подсказка. */
 .soft-hint {
   display: flex; align-items: flex-start; gap: 9px;
   /* Отступы поджаты: заметная подсказка выше прежней, а блок пульса обязан
      помещаться в 320px без прокрутки. */
   margin: 0 0 8px; padding: 9px 12px;
-  border-radius: 12px; border-left: 3px solid var(--accent-deep);
-  background: var(--accent-wash-active); color: var(--ink-body);
-  font-size: 14px; line-height: 1.5;
+  border-radius: 12px; border-left: 3px solid transparent;
+  font-size: 14px; line-height: 1.5; color: var(--ink-body);
 }
-.soft-hint i { flex: 0 0 auto; font-size: 18px; color: var(--accent-deep); line-height: 1.35; }
+.soft-hint i { flex: 0 0 auto; font-size: 18px; line-height: 1.35; }
 .soft-hint b { color: var(--ink-strong); }
+
+/* Подсказка: похоже на ошибку, но проход не блокирует, поэтому красного нет
+   нигде. Заметность даётся плотной заливкой, полосой слева, иконкой и
+   полужирной первой фразой, а не тревожным цветом. */
+.soft-hint.warn { background: var(--accent-wash-active); border-left-color: var(--accent-deep); }
+.soft-hint.warn i { color: var(--accent-deep); }
 /* Однократное короткое появление: движение ловит глаз лучше любого цвета,
-   а один раз и коротко не раздражает. */
+   а один раз и коротко не раздражает. Спокойного пересчёта это не касается,
+   он висит почти всё время и дёргаться не должен. */
 @media (prefers-reduced-motion: no-preference) {
-  .soft-hint:not([hidden]) { animation: soft-hint-in .2s ease-out; }
+  .soft-hint.warn:not([hidden]) { animation: soft-hint-in .2s ease-out; }
 }
+
+/* Пересчёт: служебная строка, а не событие. Показывает, ЧТО поняло
+   приложение, чтобы ошибка ввода не всплывала только на результате. */
+.soft-hint.calm {
+  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--border);
+  color: var(--muted-home); font-size: 13px;
+}
+/* Иконки в пересчёте нет: это спокойная служебная строка, а лишний значок
+   тянет к ней внимание и съедает ширину на узком экране. */
+.soft-hint.calm i { display: none; }
 @keyframes soft-hint-in {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }

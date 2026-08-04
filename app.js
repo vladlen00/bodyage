@@ -825,7 +825,8 @@ function reflectPulseSoftHint() {
 
   const peak = parseInt($("input-peak").value, 10);
   const after = parseInt($("input-after").value, 10);
-  const both = Number.isInteger(peak) && Number.isInteger(after);
+  const inRange = v => Number.isInteger(v) && v >= cfg.valid.min && v <= cfg.valid.max;
+  const both = inRange(peak) && inRange(after);
 
   // Сравнение НЕстрогое: ровно 55 за 15 секунд это уже 220 в минуту.
   const high = [peak, after].some(v => Number.isInteger(v) && v >= cfg.softAbove);
@@ -833,11 +834,35 @@ function reflectPulseSoftHint() {
   const same = both && peak === after;
 
   const hint = high ? TEXTS.block.pulseSoftHint : (same ? TEXTS.block.pulseSameHint : null);
-  if (!hint) { box.hidden = true; return; }
 
-  $("block-soft-lead").textContent = hint.lead;
-  $("block-soft-text").textContent = hint.text;
-  box.hidden = false;
+  const icon = box.querySelector("i");
+
+  if (hint) {
+    box.className = "soft-hint warn";
+    // Иконку ставим классом, а не подменой глифа: кодпоинты шрифта угадывать
+    // нельзя, а имя класса шрифт разрешает сам.
+    icon.className = "ti ti-alert-circle";
+    $("block-soft-lead").textContent = hint.lead;
+    $("block-soft-text").textContent = hint.text;
+    box.hidden = false;
+    return;
+  }
+
+  // Норму занимает пересчёт: то же место, тот же размер, спокойный вид.
+  if (both) {
+    const perMinutePeak = pulsePerMinute(peak, cfg);
+    const perMinuteAfter = pulsePerMinute(after, cfg);
+    box.className = "soft-hint calm";
+    $("block-soft-lead").textContent = "";
+    $("block-soft-text").textContent = TEXTS.block.pulseEcho
+      .replace("{peak}", perMinutePeak)
+      .replace("{after}", perMinuteAfter)
+      .replace("{drop}", perMinutePeak - perMinuteAfter);
+    box.hidden = false;
+    return;
+  }
+
+  box.hidden = true;
 }
 
 ["input-peak", "input-after"].forEach(id => {
