@@ -8,7 +8,7 @@
        поэтому там всегда стартуем со светлой. -->
   <script>(function(){try{if(localStorage.getItem('irena_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
   <title>Возраст тела</title>
-  <link rel="stylesheet" href="style.css?v=8">
+  <link rel="stylesheet" href="style.css?v=9">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -163,7 +163,10 @@
     <div class="field" id="input-checks" hidden></div>
 
     <!-- мягкая подсказка: похоже на ошибку, но дальше пускаем -->
-    <p class="soft-hint" id="block-soft" hidden></p>
+    <p class="soft-hint" id="block-soft" hidden>
+      <i class="ti ti-alert-circle"></i>
+      <span><b id="block-soft-lead"></b> <span id="block-soft-text"></span></span>
+    </p>
 
     <p class="field-error" id="block-error" hidden></p>
   </div>
@@ -226,6 +229,10 @@
   </div>
 </section>
 
+<!-- Вспышка на весь экран в конце таймера. Видна периферийным зрением с двух
+     метров: женщина в этот момент стоит на одной ноге и на экран не смотрит. -->
+<div class="flash" id="flash" aria-hidden="true"></div>
+
 <!-- ================= МОДАЛ ВИДЕО ================= -->
 <div class="video-modal" id="video-modal" hidden>
   <div class="video-shell">
@@ -238,9 +245,9 @@
 </div>
 
 <script src="telegram-web-app.js"></script>
-<script src="config.js?v=6"></script>
+<script src="config.js?v=7"></script>
 <script src="calc.js?v=2"></script>
 <script src="auth.js?v=1"></script>
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

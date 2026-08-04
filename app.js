@@ -184,9 +184,35 @@ async function playToneFallback() {
   }
 }
 
+// Видимый сигнал: вспышки на всю площадь плюс пульсация цифры. Звук может
+// не пройти вовсе (беззвучный режим глушит и медиаэлемент, и Web Audio), а
+// это заметно боковым зрением, не глядя на экран. Уважение к
+// prefers-reduced-motion живёт в CSS, здесь только классы.
+const FLASH_MS = 1300;
+
+function flashScreen() {
+  try {
+    const flash = $("flash");
+    const values = [$("timer-value"), $("rest-value")];
+    flash.classList.remove("on");
+    values.forEach(v => v && v.classList.remove("pulse"));
+    // Перезапуск анимации: без чтения offsetWidth браузер склеит снятие и
+    // навешивание класса в один кадр и ничего не покажет.
+    void flash.offsetWidth;
+    flash.classList.add("on");
+    values.forEach(v => v && v.classList.add("pulse"));
+    setTimeout(() => {
+      flash.classList.remove("on");
+      values.forEach(v => v && v.classList.remove("pulse"));
+    }, FLASH_MS);
+  } catch (e) {}
+}
+
 // Вибрация первой: она не зависит от звука и на Android спасает, когда
-// телефон в беззвучном режиме. На iOS Safari её нет, там надежда на звук.
+// телефон в беззвучном режиме. На iOS Safari её нет, там надежда на звук
+// и на вспышку.
 async function signalTimerEnd() {
+  flashScreen();
   try { if (navigator.vibrate) navigator.vibrate(TIMER_SOUND.vibratePattern); } catch (e) {}
   if (await playBeepElement()) return;
   await playToneFallback();
@@ -780,7 +806,8 @@ function reflectPulseSoftHint() {
     const v = parseInt($(id).value, 10);
     return Number.isInteger(v) && v > cfg.softAbove;
   });
-  box.textContent = TEXTS.block.pulseSoftHint;
+  $("block-soft-lead").textContent = TEXTS.block.pulseSoftHint.lead;
+  $("block-soft-text").textContent = TEXTS.block.pulseSoftHint.text;
   box.hidden = !high;
 }
 
