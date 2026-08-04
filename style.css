@@ -384,7 +384,10 @@ input[type=number] { -moz-appearance: textfield; }
   margin: 10px 2px 0; font-size: 13px; line-height: 1.5; color: var(--muted-home);
   text-align: center;
 }
-.save-state.ok { color: var(--success); font-weight: 600; }
+/* Подтверждение сохранения - служебная строка, а не событие. Зелёного в
+   палитре аппы нет: --success достался от app.irenabio.com и тянул взгляд
+   к второстепенному. */
+.save-state.ok { color: var(--muted-home); font-weight: 600; }
 
 /* ===================== МОДАЛ ВИДЕО ===================== */
 .video-modal {

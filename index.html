@@ -4,11 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <!-- Тема: применяем ДО рендера, чтобы не было вспышки светлого. Дефолт светлый.
-       Ключ тот же, что у app.irenabio.com. В Телеграме домен другой, ключа не будет,
-       поэтому там всегда стартуем со светлой. -->
+       ВНИМАНИЕ: в Телеграме мини-аппа живёт на том же origin vladlen00.github.io,
+       что и остальные мини-аппы студии, и localStorage у них ОБЩИЙ. Один раз
+       нажатый тумблер темы запоминается для всех и переживает перезапуск
+       Телеграма. Другой origin только у app.irenabio.com. Тему Телеграма мы не
+       читаем: его SDK кладёт лишь свои --tg-* переменные, наши стили их не
+       используют. -->
   <script>(function(){try{if(localStorage.getItem('irena_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
   <title>Возраст тела</title>
-  <link rel="stylesheet" href="style.css?v=9">
+  <link rel="stylesheet" href="style.css?v=10">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -245,9 +249,9 @@
 </div>
 
 <script src="telegram-web-app.js"></script>
-<script src="config.js?v=7"></script>
+<script src="config.js?v=8"></script>
 <script src="calc.js?v=2"></script>
 <script src="auth.js?v=1"></script>
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

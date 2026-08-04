@@ -69,8 +69,14 @@ let beepEl = null;
 // "пока я ждал, зазвучал настоящий сигнал, не трогай".
 let beepPriming = false;
 
+// Тишина для разблокировки и настоящий сигнал. Строятся один раз лениво.
+let silentWavUri = null;
+let beepWavUri = null;
+let beepSrcIsSilent = true;
+
 // WAV собираем в коде: отдельный файл в репозитории ради полусекунды
 // синуса не нужен, а data-URI не требует сети в момент сигнала.
+// volume 0 даёт настоящую тишину: все отсчёты нулевые.
 function buildBeepDataUri(freq, seconds, volume) {
   const rate = 22050;
   const total = Math.floor(rate * seconds);
@@ -103,31 +109,44 @@ function buildBeepDataUri(freq, seconds, volume) {
 
 // Разблокировка звука. Зовём на КАЖДОМ жесте, ведущем к экрану с таймером:
 // на экране паузы таймер стартует автоматически, своего жеста там нет.
+//
+// Разблокируем ПУСТЫМ файлом, а не настоящим сигналом. Ставка на muted не
+// оправдалась: в Telegram WebView на iOS немое проигрывание прозвучало
+// ВСЛУХ, и телефон пикал на экране "Прежде чем начать", где никакого
+// таймера нет. Тишина звучит одинаково при любом отношении движка к muted.
+// Разрешение, снятое жестом, живёт на самом элементе и переживает смену src.
 function primeAudio() {
   unlockAudio();
   try {
-    if (!beepEl) {
-      beepEl = document.createElement("audio");
-      beepEl.preload = "auto";
-      beepEl.src = buildBeepDataUri(
+    if (!silentWavUri) {
+      silentWavUri = buildBeepDataUri(TIMER_SOUND.freq, 0.05, 0);
+      beepWavUri = buildBeepDataUri(
         TIMER_SOUND.freq,
         TIMER_SOUND.durationMs / 1000,
         TIMER_SOUND.volume
       );
+    }
+    if (!beepEl) {
+      beepEl = document.createElement("audio");
+      beepEl.preload = "auto";
+      beepEl.src = silentWavUri;
+      beepSrcIsSilent = true;
       document.body.appendChild(beepEl);
     }
-    // Короткий немой play прямо внутри жеста: именно он снимает с элемента
-    // запрет на самостоятельное воспроизведение позже.
+    if (beepPriming) return;   // разблокировка уже идёт
+
     beepPriming = true;
-    beepEl.muted = true;
+    if (!beepSrcIsSilent) { beepEl.src = silentWavUri; beepSrcIsSilent = true; }
+
     const p = beepEl.play();
     const settle = () => {
-      // Настоящий сигнал мог начаться, пока мы ждали: тогда глушить нельзя.
+      // Настоящий сигнал мог начаться, пока мы ждали: тогда не мешаем.
       if (beepPriming) {
         try { beepEl.pause(); beepEl.currentTime = 0; } catch (e) {}
+        beepEl.src = beepWavUri;
+        beepSrcIsSilent = false;
       }
       beepPriming = false;
-      beepEl.muted = false;
     };
     if (p && typeof p.then === "function") p.then(settle).catch(settle);
     else settle();
@@ -155,10 +174,12 @@ function playTone(freq, durationMs, vol) {
 
 async function playBeepElement() {
   try {
-    if (!beepEl) return false;
-    // Настоящий сигнал старше незавершённой разблокировки.
+    if (!beepEl || !beepWavUri) return false;
+    // Настоящий сигнал старше незавершённой разблокировки: если она ещё в
+    // полёте, забираем элемент себе и ставим настоящий звук.
     beepPriming = false;
     beepEl.muted = false;
+    if (beepSrcIsSilent) { beepEl.src = beepWavUri; beepSrcIsSilent = false; }
     beepEl.currentTime = 0;
     const p = beepEl.play();
     if (p && typeof p.then === "function") await p;
@@ -802,13 +823,21 @@ function reflectPulseSoftHint() {
   const box = $("block-soft");
   if (!cfg || cfg.softAbove === undefined) { box.hidden = true; return; }
 
-  const high = ["input-peak", "input-after"].some(id => {
-    const v = parseInt($(id).value, 10);
-    return Number.isInteger(v) && v > cfg.softAbove;
-  });
-  $("block-soft-lead").textContent = TEXTS.block.pulseSoftHint.lead;
-  $("block-soft-text").textContent = TEXTS.block.pulseSoftHint.text;
-  box.hidden = !high;
+  const peak = parseInt($("input-peak").value, 10);
+  const after = parseInt($("input-after").value, 10);
+  const both = Number.isInteger(peak) && Number.isInteger(after);
+
+  // Сравнение НЕстрогое: ровно 55 за 15 секунд это уже 220 в минуту.
+  const high = [peak, after].some(v => Number.isInteger(v) && v >= cfg.softAbove);
+  // Два одинаковых числа дают падение 0 и ноль баллов ни за что.
+  const same = both && peak === after;
+
+  const hint = high ? TEXTS.block.pulseSoftHint : (same ? TEXTS.block.pulseSameHint : null);
+  if (!hint) { box.hidden = true; return; }
+
+  $("block-soft-lead").textContent = hint.lead;
+  $("block-soft-text").textContent = hint.text;
+  box.hidden = false;
 }
 
 ["input-peak", "input-after"].forEach(id => {
