@@ -116,6 +116,14 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") requestWakeLock();
 });
 
+// Свернули браузер или ушли в другое приложение - видео замолкает.
+// pagehide добирает случаи, где visibilitychange не приходит: уход по
+// аппаратной кнопке "назад" и заморозка страницы в bfcache.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") pauseVideo();
+});
+window.addEventListener("pagehide", () => { pauseVideo(); });
+
 // ==========================================================================
 // KINESCOPE
 // ==========================================================================
@@ -156,16 +164,46 @@ async function getPlayer() {
   return kinescopePlayer;
 }
 
+// Открыт ли модал прямо сейчас. Нужен из-за гонки: пока грузится SDK и
+// создаётся плеер, модал могли уже закрыть, и запоздавший play() запускал
+// бы звук у невидимого плеера.
+let videoOpen = false;
+// Толкнули ли мы запись в history ради аппаратной кнопки "назад".
+let videoHistoryPushed = false;
+
+// Пауза плеера. Идемпотентна, безопасна до создания плеера.
+async function pauseVideo() {
+  try {
+    if (kinescopePlayer) await kinescopePlayer.pause();
+  } catch (e) {
+    console.error("kinescope pause:", e);
+  }
+}
+
 async function openVideoAt(seconds) {
   const modal = document.getElementById("video-modal");
   const err = document.getElementById("video-error");
   err.hidden = true;
   modal.hidden = false;
   document.body.classList.add("no-scroll");
+  videoOpen = true;
+
+  // Аппаратная кнопка "назад" на Android должна закрывать видео, а не всю
+  // аппу. Своя запись в history ловится popstate ниже.
+  try {
+    window.history.pushState({ irenaVideo: true }, "");
+    videoHistoryPushed = true;
+  } catch (e) {
+    videoHistoryPushed = false;
+  }
+
   try {
     const player = await getPlayer();
     await player.seekTo(seconds);
     await player.play();
+    // Модал закрыли, пока плеер поднимался: гасим сразу, иначе Ирена
+    // говорит из кармана.
+    if (!videoOpen) await pauseVideo();
   } catch (e) {
     // Сюда же прилетит ошибка домена, если Kinescope не пустит github.io.
     console.error("kinescope:", e);
@@ -174,10 +212,21 @@ async function openVideoAt(seconds) {
   }
 }
 
-async function closeVideo() {
+// Единственная дверь наружу из видео. Вызывается отовсюду, включая
+// showScreen, поэтому обязана быть дешёвой и молчаливой на холостом ходу.
+// fromPopstate: назад уже отработал, второй раз в history лезть нельзя.
+function closeVideo(fromPopstate) {
+  const wasOpen = videoOpen;
+  videoOpen = false;
   document.getElementById("video-modal").hidden = true;
   document.body.classList.remove("no-scroll");
-  try { if (kinescopePlayer) await kinescopePlayer.pause(); } catch (e) {}
+  pauseVideo();
+
+  if (wasOpen && videoHistoryPushed && !fromPopstate) {
+    videoHistoryPushed = false;
+    try { window.history.back(); } catch (e) {}
+  }
+  if (fromPopstate) videoHistoryPushed = false;
 }
 
 // ==========================================================================
@@ -230,6 +279,12 @@ const state = {
 function $(id) { return document.getElementById(id); }
 
 function showScreen(id) {
+  // ЛЮБАЯ смена экрана гасит видео. Раньше пауза висела только на крестике,
+  // и всё остальное её обходило: "Дальше", "Назад", "Пропустить блок",
+  // переход на паузу, на результат, "Пройти заново". Женщина уходила делать
+  // упражнение, а Ирена продолжала говорить из телефона.
+  closeVideo();
+
   ["view-intro", "view-safety", "view-block", "view-rest", "view-result"]
     .forEach(v => { $(v).hidden = (v !== id); });
   const body = document.querySelector("#" + id + " .screen-body");
@@ -448,6 +503,9 @@ function renderBlock(i) {
         $("timer-value").textContent = fmtClock(t.seconds);
         timerBox.classList.remove("running");
       } else {
+        // Видео замолкает на старте таймера: иначе голос Ирены перекроет
+        // сигнал окончания, ради которого таймер и нужен.
+        closeVideo();
         unlockAudio();
         blockTimer.start(t.seconds);
         $("timer-btn").textContent = TEXTS.block.timerStop;
@@ -777,9 +835,17 @@ $("result-restart").addEventListener("click", () => {
 // ОБЩЕЕ
 // ==========================================================================
 
-$("video-close").addEventListener("click", closeVideo);
+// Все двери из модала ведут в closeVideo: крестик, тап по фону, Esc и
+// аппаратная кнопка "назад" на Android.
+$("video-close").addEventListener("click", () => closeVideo());
 $("video-modal").addEventListener("click", e => {
   if (e.target === $("video-modal")) closeVideo();
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && videoOpen) closeVideo();
+});
+window.addEventListener("popstate", () => {
+  if (videoOpen) closeVideo(true);
 });
 
 document.title = TEXTS.appTitle;
