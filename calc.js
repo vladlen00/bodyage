@@ -97,6 +97,17 @@ function floorRiseAnswered(selections, cfg) {
 }
 
 // ==========================================================================
+// ПУЛЬС
+// ==========================================================================
+
+// Перевод пятнадцатисекундного счёта в удары в минуту. Множитель живёт в
+// конфиге рядом с порогами блока, здесь только умножение.
+function pulsePerMinute(value, cfg) {
+  const factor = cfg && cfg.perMinuteFactor ? cfg.perMinuteFactor : 1;
+  return value * factor;
+}
+
+// ==========================================================================
 // БАЛЛ ЗА ОДИН БЛОК
 // ==========================================================================
 
@@ -124,7 +135,9 @@ function scoreBlock(blockId, answer, profile) {
   let value;
   if (cfg.input === "pulse_pair") {
     if (typeof answer.peak !== "number" || typeof answer.after !== "number") return null;
-    value = answer.peak - answer.after;
+    // Введено за 15 секунд, пороги собраны для ударов в минуту: переводим
+    // ДО применения порогов. 15 и 12 за 15 секунд дают падение 12, а не 3.
+    value = pulsePerMinute(answer.peak, cfg) - pulsePerMinute(answer.after, cfg);
   } else {
     if (typeof answer !== "number" || !isFinite(answer)) return null;
     value = answer;

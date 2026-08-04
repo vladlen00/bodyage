@@ -8,7 +8,7 @@
        поэтому там всегда стартуем со светлой. -->
   <script>(function(){try{if(localStorage.getItem('irena_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
   <title>Возраст тела</title>
-  <link rel="stylesheet" href="style.css?v=6">
+  <link rel="stylesheet" href="style.css?v=7">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -70,6 +70,7 @@
     <div class="progress-track"><div class="progress-fill" id="block-progress-fill"></div></div>
   </div>
   <div class="screen-body">
+    <p class="skip-note" id="skip-note" hidden></p>
     <div class="block-ic"><i class="ti" id="block-icon"></i></div>
     <h1 class="screen-title" id="block-title"></h1>
     <div class="block-substep" id="block-substep" hidden></div>
@@ -118,8 +119,6 @@
     <!-- ввод: галочки вставания с пола -->
     <div class="field" id="input-checks" hidden></div>
 
-    <!-- подпись под полями ввода: как считать. Не в раскрывашке -->
-    <p class="input-note" id="input-note" hidden></p>
     <!-- мягкая подсказка: похоже на ошибку, но дальше пускаем -->
     <p class="soft-hint" id="block-soft" hidden></p>
 
@@ -193,8 +192,8 @@
   </div>
 </div>
 
-<script src="config.js?v=4"></script>
-<script src="calc.js?v=1"></script>
-<script src="app.js?v=5"></script>
+<script src="config.js?v=5"></script>
+<script src="calc.js?v=2"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>

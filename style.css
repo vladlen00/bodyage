@@ -180,8 +180,6 @@ body.no-scroll { overflow: hidden; }
 .field-row { display: flex; align-items: center; gap: 10px; }
 .field-unit { font-size: 14px; color: var(--muted-home); flex: 0 0 auto; }
 .field-error { color: var(--accent-deep); font-size: 13px; margin: 0 2px 12px; }
-/* Подпись под полями: как считать. Спокойная, это часть инструкции. */
-.input-note { color: var(--muted-home); font-size: 13px; margin: -6px 2px 12px; }
 /* Мягкая подсказка: похоже на ошибку, но проход не блокирует, поэтому
    заливка, а не красный текст. */
 .soft-hint {
@@ -294,8 +292,25 @@ input[type=number] { -moz-appearance: textfield; }
 }
 .breakdown-name { font-weight: 600; min-width: 0; }
 .breakdown-score { flex: 0 0 auto; font-weight: 700; color: var(--accent-deep); font-variant-numeric: tabular-nums; }
-.breakdown-list li.is-skipped .breakdown-name,
-.breakdown-list li.is-skipped .breakdown-score { color: var(--muted-home); font-weight: 600; }
+/* Пропущенный блок кликабелен целиком: сама строка становится кнопкой,
+   поэтому свой отступ она отдаёт кнопке внутри. */
+.breakdown-list li.is-skipped { padding: 0; }
+.breakdown-fix {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 14px; background: transparent; border: none; border-radius: 13px;
+  font-family: inherit; font-size: 14px; text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.breakdown-fix .breakdown-name { color: var(--muted-home); font-weight: 600; }
+.breakdown-fill { flex: 0 0 auto; font-weight: 700; color: var(--accent-deep); }
+.breakdown-fix:hover .breakdown-name { color: var(--text-home); }
+
+/* Строка про то, что пропуск обратим. Спокойная, показывается один раз. */
+.skip-note {
+  margin: 0 0 14px; padding: 10px 12px; border-radius: 12px;
+  background: var(--accent-wash); color: var(--ink-body);
+  font-size: 13px; line-height: 1.5;
+}
 
 .result-none { text-align: center; padding: 24px 0 0; }
 

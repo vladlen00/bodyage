@@ -249,7 +249,17 @@ function isAnswerValue(blockId: string, v: unknown): boolean {
 
   const o = v as Record<string, unknown>;
   if (blockId === "pulse_recovery") {
-    return Object.keys(o).length === 2 && isInt(o.peak, 0, 300) && isInt(o.after, 0, 300);
+    // Пульс вводится за 15 секунд, а пороги считаются от ударов в минуту,
+    // поэтому в замер идут ОБА значения: введённое и посчитанное.
+    // Пересчёт после перекалибровки будет опираться на сырое.
+    const keys = Object.keys(o);
+    if (keys.some((k) => !["peak", "after", "peak_per_minute", "after_per_minute"].includes(k))) {
+      return false;
+    }
+    if (!isInt(o.peak, 0, 300) || !isInt(o.after, 0, 300)) return false;
+    if (o.peak_per_minute !== undefined && !isInt(o.peak_per_minute, 0, 400)) return false;
+    if (o.after_per_minute !== undefined && !isInt(o.after_per_minute, 0, 400)) return false;
+    return true;
   }
   if (blockId === "floor_rise") {
     return Object.keys(o).length === 2 && isOptionIdList(o.descent) && isOptionIdList(o.rise);

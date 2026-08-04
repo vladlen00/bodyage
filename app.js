@@ -59,6 +59,81 @@ function unlockAudio() {
   } catch (e) {}
 }
 
+// Готовый медиаэлемент с сигналом. Web Audio на iOS оказался ненадёжен:
+// контекст уходит в suspended, и на экране паузы, где таймер стартует САМ,
+// без жеста, сигнал не звучал вовсе. Элемент <audio>, единожды
+// разблокированный жестом, переживает засыпание надёжнее.
+let beepEl = null;
+// Идёт ли прямо сейчас немая разблокировка. Её завершение приходит
+// асинхронно и обязано отличать "это была разблокировка, глуши" от
+// "пока я ждал, зазвучал настоящий сигнал, не трогай".
+let beepPriming = false;
+
+// WAV собираем в коде: отдельный файл в репозитории ради полусекунды
+// синуса не нужен, а data-URI не требует сети в момент сигнала.
+function buildBeepDataUri(freq, seconds, volume) {
+  const rate = 22050;
+  const total = Math.floor(rate * seconds);
+  const size = 44 + total * 2;
+  const view = new DataView(new ArrayBuffer(size));
+  const ascii = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+
+  ascii(0, "RIFF");  view.setUint32(4, size - 8, true);   ascii(8, "WAVE");
+  ascii(12, "fmt "); view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);  view.setUint16(22, 1, true);
+  view.setUint32(24, rate, true); view.setUint32(28, rate * 2, true);
+  view.setUint16(32, 2, true);  view.setUint16(34, 16, true);
+  ascii(36, "data"); view.setUint32(40, total * 2, true);
+
+  // Те же мягкие края, что у Web Audio, иначе щёлкает.
+  const fade = Math.floor(rate * TIMER_SOUND.fadeInSec);
+  for (let i = 0; i < total; i++) {
+    let gain = volume;
+    if (i < fade) gain *= i / fade;
+    if (i > total - fade) gain *= (total - i) / fade;
+    const v = Math.sin((2 * Math.PI * freq * i) / rate) * gain;
+    view.setInt16(44 + i * 2, Math.max(-1, Math.min(1, v)) * 32767, true);
+  }
+
+  let bin = "";
+  const bytes = new Uint8Array(view.buffer);
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return "data:audio/wav;base64," + btoa(bin);
+}
+
+// Разблокировка звука. Зовём на КАЖДОМ жесте, ведущем к экрану с таймером:
+// на экране паузы таймер стартует автоматически, своего жеста там нет.
+function primeAudio() {
+  unlockAudio();
+  try {
+    if (!beepEl) {
+      beepEl = document.createElement("audio");
+      beepEl.preload = "auto";
+      beepEl.src = buildBeepDataUri(
+        TIMER_SOUND.freq,
+        TIMER_SOUND.durationMs / 1000,
+        TIMER_SOUND.volume
+      );
+      document.body.appendChild(beepEl);
+    }
+    // Короткий немой play прямо внутри жеста: именно он снимает с элемента
+    // запрет на самостоятельное воспроизведение позже.
+    beepPriming = true;
+    beepEl.muted = true;
+    const p = beepEl.play();
+    const settle = () => {
+      // Настоящий сигнал мог начаться, пока мы ждали: тогда глушить нельзя.
+      if (beepPriming) {
+        try { beepEl.pause(); beepEl.currentTime = 0; } catch (e) {}
+      }
+      beepPriming = false;
+      beepEl.muted = false;
+    };
+    if (p && typeof p.then === "function") p.then(settle).catch(settle);
+    else settle();
+  } catch (e) {}
+}
+
 function playTone(freq, durationMs, vol) {
   try {
     const ctx = getAudioCtx();
@@ -78,9 +153,43 @@ function playTone(freq, durationMs, vol) {
   } catch (e) {}
 }
 
-function signalTimerEnd() {
-  playTone(TIMER_SOUND.freq, TIMER_SOUND.durationMs, TIMER_SOUND.volume);
+async function playBeepElement() {
+  try {
+    if (!beepEl) return false;
+    // Настоящий сигнал старше незавершённой разблокировки.
+    beepPriming = false;
+    beepEl.muted = false;
+    beepEl.currentTime = 0;
+    const p = beepEl.play();
+    if (p && typeof p.then === "function") await p;
+    return true;
+  } catch (e) {
+    console.error("beep element:", e);
+    return false;
+  }
+}
+
+// Запасной путь. resume() обязателен ПЕРЕД игрой: iOS усыпляет контекст
+// сам, и на двухминутной паузе он к финишу уже не running.
+async function playToneFallback() {
+  try {
+    const ctx = getAudioCtx();
+    if (ctx.state !== "running") await ctx.resume();
+    if (ctx.state !== "running") return false;
+    playTone(TIMER_SOUND.freq, TIMER_SOUND.durationMs, TIMER_SOUND.volume);
+    return true;
+  } catch (e) {
+    console.error("web audio fallback:", e);
+    return false;
+  }
+}
+
+// Вибрация первой: она не зависит от звука и на Android спасает, когда
+// телефон в беззвучном режиме. На iOS Safari её нет, там надежда на звук.
+async function signalTimerEnd() {
   try { if (navigator.vibrate) navigator.vibrate(TIMER_SOUND.vibratePattern); } catch (e) {}
+  if (await playBeepElement()) return;
+  await playToneFallback();
 }
 
 // ==========================================================================
@@ -274,6 +383,12 @@ const state = {
   floor: { descent: [], rise: [] },   // текущие галочки вставания с пола
   floorStep: 0,                       // какая половина блока с галочками на экране
   index: 0,                           // индекс блока в BLOCKS
+  // Пришли в блок с экрана результата дозаполнить пропущенное. Отличает
+  // "иду по порядку" от "вернулась исправить": по "Дальше" не следующий
+  // блок, а обратно на результат.
+  returnToResult: false,
+  skipNoticeShown: false,             // строку про дозаполнение показали
+  showSkipNote: false,                // показать её на ближайшем блоке
 };
 
 function $(id) { return document.getElementById(id); }
@@ -370,7 +485,7 @@ $("intro-start").addEventListener("click", () => {
   state.profile.age = age;
 
   // Первый жест на старте теста: будим звук и берём Wake Lock.
-  unlockAudio();
+  primeAudio();
   wakeLockWanted = true;
   requestWakeLock();
 
@@ -390,6 +505,9 @@ function renderSafety() {
 
 $("safety-watch").addEventListener("click", () => openVideoAt(TIMECODES.intro));
 $("safety-start").addEventListener("click", () => {
+  // Последний жест перед экраном паузы, где таймер стартует сам.
+  // Разблокировка идемпотентна, лишний вызов ничего не стоит.
+  primeAudio();
   state.index = 0;
   goToBlock();
 });
@@ -404,6 +522,9 @@ const restTimer = createTimer(
     signalTimerEnd();
     $("rest-next").disabled = false;
     document.querySelector("#view-rest .timer").classList.remove("running");
+    // Видимый сигнал рядом со звуковым: телефон в беззвучном режиме
+    // молчит независимо от того, как мы играем звук.
+    $("rest-hint").textContent = TEXTS.block.timerDone;
   }
 );
 
@@ -430,6 +551,11 @@ function showRest(cfg, blockIndex) {
 // Вход в блок ВСЕГДА с нуля: галочки и внутренний шаг сбрасываются здесь,
 // а не в renderBlock, потому что renderBlock зовут ещё и на "Назад".
 function goToBlock() {
+  // Единственная точка перехода между блоками, и вызывается она всегда из
+  // жеста: подтверждаем разблокировку звука здесь, чтобы экран паузы с его
+  // автостартом таймера был прикрыт независимо от того, откуда пришли.
+  primeAudio();
+
   if (state.index >= BLOCKS.length) { finish(); return; }
   const block = BLOCKS[state.index];
   state.floor = { descent: [], rise: [] };
@@ -477,6 +603,16 @@ function renderBlock(i) {
   $("block-back").textContent = TEXTS.block.back;
   $("block-error").hidden = true;
 
+  // Строка про дозаполнение живёт ровно один экран после первого пропуска.
+  const skipNote = $("skip-note");
+  if (state.showSkipNote) {
+    skipNote.textContent = TEXTS.block.skipNote;
+    skipNote.hidden = false;
+    state.showSkipNote = false;
+  } else {
+    skipNote.hidden = true;
+  }
+
   renderSubstep(block);
 
   // Пометка про фазу цикла - только женщинам.
@@ -506,7 +642,7 @@ function renderBlock(i) {
         // Видео замолкает на старте таймера: иначе голос Ирены перекроет
         // сигнал окончания, ради которого таймер и нужен.
         closeVideo();
-        unlockAudio();
+        primeAudio();
         blockTimer.start(t.seconds);
         $("timer-btn").textContent = TEXTS.block.timerStop;
         timerBox.classList.add("running");
@@ -557,16 +693,6 @@ function renderInputs(block) {
 
   single.hidden = true; pair.hidden = true; checks.hidden = true;
   $("block-soft").hidden = true;
-
-  // Подпись под полями: как именно считать. Живёт у полей, а не за
-  // раскрывашкой "Подробнее", в которую никто не заглядывает.
-  const note = $("input-note");
-  if (block.inputNote) {
-    note.textContent = block.inputNote;
-    note.hidden = false;
-  } else {
-    note.hidden = true;
-  }
 
   if (cfg.input === "pulse_pair") {
     pair.hidden = false;
@@ -637,21 +763,21 @@ function reflectFloorChecks(cfg) {
   });
 }
 
-// Мягкая подсказка про непомноженный пульс. Женщина считает удары за 15
-// секунд и вписывает 35 вместо 140, получая "падение 25+" ни за что.
-// Подсказка живёт на вводе, а не на кнопке "Дальше": показать её в момент
-// перехода бессмысленно, экран уже сменится. Проход она не блокирует.
+// Мягкая подсказка про уже умноженный пульс. Поля принимают счёт за 15
+// секунд, но привычка вписать минутные 140 никуда не денется. Подсказка
+// живёт на вводе, а не на кнопке "Дальше": показать её в момент перехода
+// бессмысленно, экран уже сменится. Проход она не блокирует.
 function reflectPulseSoftHint() {
   const cfg = SCORING[BLOCKS[state.index].id];
   const box = $("block-soft");
-  if (!cfg || cfg.softBelow === undefined) { box.hidden = true; return; }
+  if (!cfg || cfg.softAbove === undefined) { box.hidden = true; return; }
 
-  const low = ["input-peak", "input-after"].some(id => {
+  const high = ["input-peak", "input-after"].some(id => {
     const v = parseInt($(id).value, 10);
-    return Number.isInteger(v) && v < cfg.softBelow;
+    return Number.isInteger(v) && v > cfg.softAbove;
   });
   box.textContent = TEXTS.block.pulseSoftHint;
-  box.hidden = !low;
+  box.hidden = !high;
 }
 
 ["input-peak", "input-after"].forEach(id => {
@@ -672,7 +798,17 @@ function collectAnswer(block) {
     const after = parseInt($("input-after").value, 10);
     const inRange = v => Number.isInteger(v) && v >= cfg.valid.min && v <= cfg.valid.max;
     if (!inRange(peak) || !inRange(after)) return { ok: false };
-    return { ok: true, value: { peak, after } };
+    // Пишем ОБА значения: введённое за 15 секунд и посчитанное в минуту.
+    // Пересчёт после перекалибровки порогов будет опираться на сырое.
+    return {
+      ok: true,
+      value: {
+        peak,
+        after,
+        peak_per_minute: pulsePerMinute(peak, cfg),
+        after_per_minute: pulsePerMinute(after, cfg),
+      },
+    };
   }
 
   const v = parseInt($("input-single-value").value, 10);
@@ -714,6 +850,14 @@ $("block-next").addEventListener("click", () => {
   }
   blockTimer.stop();
   state.answers[block.id] = res.value;
+
+  // Дозаполнение: возвращаемся на результат, а не идём по порядку дальше.
+  if (state.returnToResult) {
+    state.returnToResult = false;
+    finish();
+    return;
+  }
+
   state.index += 1;
   goToBlock();
 });
@@ -733,9 +877,36 @@ $("block-back").addEventListener("click", () => {
 $("block-skip").addEventListener("click", () => {
   blockTimer.stop();
   state.answers[BLOCKS[state.index].id] = null;
+
+  if (state.returnToResult) {
+    state.returnToResult = false;
+    finish();
+    return;
+  }
+
+  // Про то, что пропуск обратим, говорим один раз и сразу после первого.
+  if (!state.skipNoticeShown) {
+    state.skipNoticeShown = true;
+    state.showSkipNote = true;
+  }
+
   state.index += 1;
   goToBlock();
 });
+
+// Возврат в пропущенный блок с экрана результата. Экран паузы по дороге
+// НЕ показываем: она приходит с результата, отдохнувшая, а пауза нужна
+// была, чтобы пульс улёгся после предыдущей нагрузки.
+function openBlockForFix(blockId) {
+  const i = BLOCKS.findIndex(b => b.id === blockId);
+  if (i < 0) return;
+  state.returnToResult = true;
+  state.index = i;
+  state.floor = { descent: [], rise: [] };
+  state.floorStep = 0;
+  renderBlock(i);
+  showScreen("view-block");
+}
 
 // ==========================================================================
 // ЭКРАН РЕЗУЛЬТАТА
@@ -744,6 +915,7 @@ $("block-skip").addEventListener("click", () => {
 function finish() {
   blockTimer.stop();
   restTimer.stop();
+  state.showSkipNote = false;
   releaseWakeLock();
   renderResult(computeResult(state.answers, state.profile));
   showScreen("view-result");
@@ -802,17 +974,34 @@ function renderResult(r) {
   list.innerHTML = "";
   r.perBlock.forEach(b => {
     const li = document.createElement("li");
-    if (b.skipped) li.className = "is-skipped";
 
     const name = document.createElement("span");
     name.className = "breakdown-name";
     name.textContent = b.title;
 
+    // Пропущенный блок - не приговор: строка кликабельна и ведёт обратно в
+    // блок. Иначе три пропуска убивают результат, а исправить это можно
+    // только пройдя весь тест заново.
+    if (b.skipped) {
+      li.className = "is-skipped";
+      const fix = document.createElement("button");
+      fix.type = "button";
+      fix.className = "breakdown-fix";
+      const fill = document.createElement("span");
+      fill.className = "breakdown-fill";
+      fill.textContent = TEXTS.result.blockFill;
+      fix.appendChild(name);
+      fix.appendChild(fill);
+      fix.addEventListener("click", () => openBlockForFix(b.id));
+      li.appendChild(fix);
+      list.appendChild(li);
+      return;
+    }
+
     const score = document.createElement("span");
     score.className = "breakdown-score";
-    score.textContent = b.skipped
-      ? TEXTS.result.blockSkipped
-      : TEXTS.result.blockScore.replace("{score}", b.score).replace("{max}", MAX_SCORE_PER_BLOCK);
+    score.textContent = TEXTS.result.blockScore
+      .replace("{score}", b.score).replace("{max}", MAX_SCORE_PER_BLOCK);
 
     li.appendChild(name);
     li.appendChild(score);
@@ -828,6 +1017,9 @@ $("result-restart").addEventListener("click", () => {
   state.floorStep = 0;
   state.index = 0;
   state.restDone = false;
+  state.returnToResult = false;
+  state.skipNoticeShown = false;
+  state.showSkipNote = false;
   showScreen("view-intro");
 });
 
