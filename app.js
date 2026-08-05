@@ -581,6 +581,8 @@ const restTimer = createTimer(
     // Видимый сигнал рядом со звуковым: телефон в беззвучном режиме
     // молчит независимо от того, как мы играем звук.
     $("rest-hint").textContent = TEXTS.block.timerDone;
+    // Пауза вышла, пропускать нечего.
+    $("rest-note").hidden = true;
   }
 );
 
@@ -589,8 +591,11 @@ function showRest(cfg, blockIndex) {
   $("rest-title").textContent = cfg.title;
   $("rest-text").textContent = cfg.text;
   $("rest-hint").textContent = TEXTS.rest.skipHint;
+  $("rest-note").textContent = TEXTS.rest.skipNote;
+  $("rest-note").hidden = false;
   $("rest-next").textContent = TEXTS.block.next;
-  $("rest-next").disabled = true;
+  // Разрешён ли пропуск, решает конфиг, а не экран.
+  $("rest-next").disabled = !cfg.skippable;
   document.querySelector("#view-rest .timer").classList.add("running");
 
   showScreen("view-rest");
