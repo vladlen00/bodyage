@@ -252,7 +252,10 @@
 </div>
 
 <script src="telegram-web-app.js"></script>
-<script src="config.js?v=11"></script>
+<!-- Замороженные пороги версии 1. ОБЯЗАТЕЛЬНО перед config.js: он их выбирает.
+     Калибровка кладёт рядом norms-v2.js и подключает его тоже перед config.js. -->
+<script src="norms-v1.js?v=1"></script>
+<script src="config.js?v=12"></script>
 <script src="calc.js?v=3"></script>
 <script src="auth.js?v=1"></script>
 <script src="app.js?v=13"></script>
