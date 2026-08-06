@@ -484,7 +484,11 @@ function renderIntro() {
   buildOptions($("intro-sex"), "sex", [
     { value: "female", label: TEXTS.intro.sexFemale },
     { value: "male",   label: TEXTS.intro.sexMale },
-  ], v => { state.profile.sex = v; });
+  ], v => {
+    state.profile.sex = v;
+    $("intro-sex-error").hidden = true;
+    reflectStartEnabled();
+  });
 
   buildOptions($("intro-who"), "who", [
     { value: "self",  label: TEXTS.intro.whoSelf },
@@ -494,6 +498,15 @@ function renderIntro() {
   // Пол не выбран заранее: тест проходят и женщины, и мужчины.
   selectOption($("intro-who"), "self");
   state.profile.who = "self";
+  reflectStartEnabled();
+}
+
+// Кнопка входа выключена, пока пол не выбран. Пол задаёт пороги трёх блоков
+// из семи, и умолчания у него быть не может ни явного, ни молчаливого.
+// Именно ВЫКЛЮЧЕНА, а не молча не срабатывает: по мёртвой на вид кнопке не
+// понять, ждут от тебя ещё чего-то или сломалось приложение.
+function reflectStartEnabled() {
+  $("intro-start").disabled = !state.profile.sex;
 }
 
 function buildOptions(host, name, items, onPick) {
@@ -527,17 +540,25 @@ function selectOption(host, value) {
   });
 }
 
+// У каждого поля своя ошибка и своё место под ним. Раньше ошибка пола жила
+// в слоте ошибки возраста и текстом брала лейбл "Пол": женщина видела над
+// кнопкой одинокое слово не под тем полем.
 $("intro-start").addEventListener("click", () => {
-  const err = $("intro-age-error");
+  const ageErr = $("intro-age-error");
+  const sexErr = $("intro-sex-error");
   const age = parseInt($("intro-age").value, 10);
   const okAge = Number.isInteger(age) && age >= LIMITS.entryAgeMin && age <= LIMITS.entryAgeMax;
 
-  if (!okAge || !state.profile.sex) {
-    err.textContent = !okAge ? TEXTS.intro.ageError : TEXTS.intro.sexLabel;
-    err.hidden = false;
-    return;
-  }
-  err.hidden = true;
+  ageErr.textContent = TEXTS.intro.ageError;
+  ageErr.hidden = okAge;
+  // Кнопка при невыбранном поле уже выключена, сюда мы попасть не должны.
+  // Проверка остаётся: пороги трёх блоков зависят от пола, и подстраховка
+  // на случай, если выключение однажды обойдут, стоит трёх строк.
+  sexErr.textContent = TEXTS.intro.sexError;
+  sexErr.hidden = !!state.profile.sex;
+
+  if (!okAge || !state.profile.sex) return;
+
   state.profile.age = age;
 
   // Первый жест на старте теста: будим звук и берём Wake Lock.
@@ -1021,6 +1042,27 @@ function finish() {
   showScreen("view-result");
 }
 
+// Строка под названием блока в разборе: то самое число, по которому считали.
+// Без неё "0 из 3" читается как отказ системы, а не как результат: живой
+// прогон дал жалобу "стул не засчитан" - женщина не увидела своего числа и
+// решила, что ввод потерялся. Форма строки живёт в resultEcho у блока.
+function blockEcho(entry) {
+  const block = BLOCKS.find(b => b.id === entry.id);
+  const cfg = block && block.resultEcho;
+  if (!cfg) return "";
+  if (cfg.text) return cfg.text;
+  if (typeof entry.value !== "number" || !isFinite(entry.value)) return "";
+  if (entry.value === 0 && cfg.zero) return cfg.zero;
+
+  // Отрицательное значение выносим в слова: "падение на -20 ударов" это
+  // мусор на экране, а пульс после нагрузки действительно может вырасти.
+  let n = entry.value;
+  let prefix = cfg.prefix || "";
+  if (n < 0 && cfg.negPrefix) { prefix = cfg.negPrefix; n = -n; }
+
+  return prefix + n + " " + pluralWord(n, cfg.forms) + (cfg.suffix || "");
+}
+
 function renderResult(r) {
   const head = $("result-head");
   const none = $("result-none");
@@ -1103,7 +1145,21 @@ function renderResult(r) {
     score.textContent = TEXTS.result.blockScore
       .replace("{score}", b.score).replace("{max}", MAX_SCORE_PER_BLOCK);
 
-    li.appendChild(name);
+    // Название и эхо введённого числа идут одной колонкой: балл справа
+    // остаётся узким и не воюет за ширину с длинной строкой эха.
+    const main = document.createElement("div");
+    main.className = "breakdown-main";
+    main.appendChild(name);
+
+    const echoText = blockEcho(b);
+    if (echoText) {
+      const echo = document.createElement("span");
+      echo.className = "breakdown-echo";
+      echo.textContent = echoText;
+      main.appendChild(echo);
+    }
+
+    li.appendChild(main);
     li.appendChild(score);
     list.appendChild(li);
   });

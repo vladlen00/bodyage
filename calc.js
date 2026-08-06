@@ -170,25 +170,23 @@ function scoreBlock(blockId, answer, profile) {
 // ИТОГ
 // ==========================================================================
 
-// Склонение слова "год".
-function yearsWord(n) {
+// Склонение по числу. forms - три формы: для 1, для 2, для 5.
+// Правило одно на все слова, поэтому и функция одна: эхо введённого числа
+// в разборе результата склоняет свои единицы этой же функцией.
+function pluralWord(n, forms) {
   const a = Math.abs(n) % 100;
   const b = a % 10;
-  if (a > 10 && a < 20) return YEARS_FORMS[2];
-  if (b === 1) return YEARS_FORMS[0];
-  if (b > 1 && b < 5) return YEARS_FORMS[1];
-  return YEARS_FORMS[2];
+  if (a > 10 && a < 20) return forms[2];
+  if (b === 1) return forms[0];
+  if (b > 1 && b < 5) return forms[1];
+  return forms[2];
 }
 
+// Склонение слова "год".
+function yearsWord(n) { return pluralWord(n, YEARS_FORMS); }
+
 // Склонение слова "день" для строки про начатый замер.
-function daysWord(n) {
-  const a = Math.abs(n) % 100;
-  const b = a % 10;
-  if (a > 10 && a < 20) return DAYS_FORMS[2];
-  if (b === 1) return DAYS_FORMS[0];
-  if (b > 1 && b < 5) return DAYS_FORMS[1];
-  return DAYS_FORMS[2];
-}
+function daysWord(n) { return pluralWord(n, DAYS_FORMS); }
 
 // answers: { blockId: answer | null }. Пропущенный блок = null.
 // profile: { age, sex }.
@@ -208,6 +206,11 @@ function computeResult(answers, profile) {
         skipped: false,
         score: scored.score,
         rating: scored.rating || null,
+        // То, по чему считали: для большинства блоков это введённое число,
+        // для восстановления пульса - падение, для вставания с пола - баллы
+        // по галочкам. Экран показывает его рядом с баллом, чтобы ноль не
+        // читался как потерянный ввод.
+        value: scored.value,
       });
     } else {
       perBlock.push({

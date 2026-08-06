@@ -357,6 +357,13 @@ input[type=number] { -moz-appearance: textfield; }
 }
 .breakdown-name { font-weight: 600; min-width: 0; }
 .breakdown-score { flex: 0 0 auto; font-weight: 700; color: var(--accent-deep); font-variant-numeric: tabular-nums; }
+/* Название и эхо введённого числа одной колонкой. min-width: 0 обязателен:
+   без него флекс-колонка не даёт длинной строке переноситься и распирает
+   карточку вправо на узких экранах. */
+.breakdown-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+/* Эхо ввода: "22 подъёма" под названием блока. Тихое и мелкое - оно не
+   результат, а доказательство, что число дошло до расчёта. */
+.breakdown-echo { font-size: 12px; font-weight: 500; line-height: 1.35; color: var(--muted-home); }
 /* Пропущенный блок кликабелен целиком: сама строка становится кнопкой,
    поэтому свой отступ она отдаёт кнопке внутри. */
 .breakdown-list li.is-skipped { padding: 0; }
