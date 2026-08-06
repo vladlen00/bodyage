@@ -329,6 +329,13 @@ input[type=number] { -moz-appearance: textfield; }
 .result-caption { margin-top: 8px; font-size: 16px; font-weight: 700; }
 .result-caption.younger { color: var(--accent-deep); }
 .result-caption.same, .result-caption.older { color: var(--muted-home); }
+/* Почему цифра именно такая, когда её держит край шкалы, а не результат.
+   Появляется ТОЛЬКО в этом случае. Служебный цвет и обычный вес: это
+   объяснение, а не оценка, и красного на результате нет нигде. */
+.result-limit {
+  margin: 10px 0 0; font-size: 13px; line-height: 1.55;
+  font-weight: 500; color: var(--muted-home);
+}
 
 /* Сноска, а не блок. Подложку, рамку и отступы убрали по просьбе Ирены,
    но текст остаётся ПОД ЦИФРОЙ: он объясняет, чем результат не является,

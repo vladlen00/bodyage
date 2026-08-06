@@ -1096,6 +1096,26 @@ function renderResult(r) {
     $("result-none-text").textContent = TEXTS.result.notEnoughText;
   }
 
+  // Строка про край шкалы. Живёт только тогда, когда цифру держит не
+  // результат, а граница: молчаливый упор женщина принимает за поломку.
+  // Причину показываем ОДНУ, самую конкретную. Граница возраста идёт первой:
+  // она объясняет и почему цифра именно 18, и почему улучшения её не двигают.
+  // Предел полос остаётся на случай, когда границы возраста нет, - это ровно
+  // случай Ирены: 39 лет, всё на максимум, цифра 29 и не меньше никогда.
+  const limit = $("result-limit");
+  let limitText = "";
+  if (r.hasAge) {
+    if (r.clampedTo === "min") {
+      limitText = TEXTS.result.limitFloor.replace("{n}", LIMITS.resultAgeMin);
+    } else if (r.clampedTo === "max") {
+      limitText = TEXTS.result.limitCeiling.replace("{n}", LIMITS.resultAgeMax);
+    } else if (r.atScaleTop) {
+      limitText = TEXTS.result.limitTop;
+    }
+  }
+  limit.textContent = limitText;
+  limit.hidden = !limitText;
+
   // Дисклеймер объясняет цифру возраста. Пропущено больше двух блоков -
   // цифры на экране нет, значит и объяснять нечего.
   $("result-disclaimer").textContent = TEXTS.result.disclaimer;

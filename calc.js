@@ -272,12 +272,33 @@ function computeResult(answers, profile) {
   // подпись "на 10 лет моложе" будут спорить друг с другом на экране.
   const shift = bodyAge - profile.age;
 
+  // Упёрлась ли цифра в край шкалы. Экран обязан это сказать: живой проход
+  // показал, что молчаливый упор читается как поломка приложения. Ирена
+  // ввела 39 лет с отличными результатами и получила 29, потом ввела 18 с
+  // теми же результатами и получила 18 с подписью "соответствует возрасту".
+  //
+  // clampedTo - сработала граница возраста: урезанный сдвиг разошёлся с
+  // исходным, то есть цифру держит LIMITS, а не результат.
+  const clampedTo = shift === rawShift
+    ? null
+    : (profile.age + rawShift < LIMITS.resultAgeMin ? "min" : "max");
+
+  // atScaleTop - сдвиг уже лучший из существующих полос, лучше просто нет.
+  // Считаем из конфига, а не числом: полосы будут править калибровкой.
+  // ВАЖНО: это НЕ то же самое, что "все блоки на высший балл". Верхняя
+  // полоса AGE_SHIFT начинается с 20 из 21, поэтому цифра упирается в
+  // предел на балл раньше максимума, и улучшение с 20 до 21 её не двигает.
+  const bestShift = AGE_SHIFT.reduce((m, x) => Math.min(m, x.shift), Infinity);
+  const atScaleTop = rawShift === bestShift;
+
   return Object.assign(base, {
     hasAge: true,
     equivalent,
     rawShift,
     shift,
     bodyAge,
+    clampedTo,
+    atScaleTop,
     title: row ? row.title : "",
   });
 }
