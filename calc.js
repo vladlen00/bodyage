@@ -308,3 +308,115 @@ function computeResult(answers, profile) {
     title: row ? row.title : "",
   });
 }
+
+// ==========================================================================
+// СРАВНЕНИЕ ДВУХ ЗАМЕРОВ
+// ==========================================================================
+// Сравниваем СЫРЫЕ числа, а не баллы, и не возраст тела.
+//
+// Причина первая: у возраста тела есть потолок. Минус десять это лучший
+// сдвиг из существующих, и женщина, взявшая его на первом замере, получит в
+// конце спринта ту же цифру, сколько бы она ни улучшила. Ирена упёрлась в
+// потолок сразу, и без сырых чисел показать ей прогресс было бы нечем.
+//
+// Причина вторая: сырое число не зависит от норм вообще. "25 -> 34 подъёма"
+// переживёт калибровку chair_stand без единой правки, тогда как сравнение по
+// баллам пришлось бы гнать через одну версию порогов и объяснять пересчёт.
+//
+// Здесь только арифметика. Направление, потолок и единицы берутся из
+// конфига, ни одного числа в логике нет, как и во всём файле.
+
+// Меньше лучше или больше лучше. Форма полос внутри одного блока везде
+// одинаковая, below и atLeast в одной таблице не смешиваются, поэтому
+// хватает первой попавшейся.
+function blockLowerIsBetter(cfg) {
+  if (!cfg) return false;
+  let list = cfg.bands;
+  if (!list && cfg.bySex) list = cfg.bySex[Object.keys(cfg.bySex)[0]];
+  if (!list) list = cfg.byAge;
+  if (!Array.isArray(list) || list.length === 0) return false;
+  // Список может быть либо сразу полосами, либо возрастными группами.
+  const first = list[0].bands ? list[0].bands[0] : list[0];
+  return !!first && first.below !== undefined;
+}
+
+// Потолок сырого числа, если он есть. Дальше него значение не растёт по
+// устройству блока, а не по силе женщины: баланс упирается в таймер,
+// вставание с пола в "чисто, без опор". Оба числа из конфига.
+function blockRawCeiling(cfg) {
+  if (!cfg) return null;
+  if (cfg.cap !== undefined) return cfg.cap;
+  if (cfg.startPoints !== undefined) return cfg.startPoints;
+  return null;
+}
+
+// Сырое число блока для сравнения. null - сравнивать нечем.
+// Восстановление пульса идёт по ПАДЕНИЮ: в зачёт идёт оно, и эхо в разборе
+// построено на нём же, иначе женщина сверяла бы рост не с тем числом.
+// Секунды НЕ режем потолком, в отличие от scoreBlock: показываем то, что
+// она ввела, а упор в потолок отмечаем отдельно.
+function blockRawValue(blockId, answer) {
+  const cfg = SCORING[blockId];
+  if (!cfg || answer === null || answer === undefined) return null;
+
+  if (cfg.input === "checkboxes") {
+    if (!floorRiseAnswered(answer, cfg)) return null;
+    return floorRisePoints(answer, cfg).points;
+  }
+  if (cfg.input === "pulse_pair") {
+    if (typeof answer.peak !== "number" || typeof answer.after !== "number") return null;
+    return pulsePerMinute(answer.peak, cfg) - pulsePerMinute(answer.after, cfg);
+  }
+  if (typeof answer !== "number" || !isFinite(answer)) return null;
+  return answer;
+}
+
+// Одна строка сравнения.
+// status: better | worse | same | ceiling | no_pair
+// Слово better, а не grew: у пульса покоя улучшение это падение числа, и
+// "вырос" про него было бы враньём.
+function compareBlock(blockId, fromAnswer, toAnswer) {
+  const cfg = SCORING[blockId];
+  const from = blockRawValue(blockId, fromAnswer);
+  const to = blockRawValue(blockId, toAnswer);
+
+  if (from === null || to === null) {
+    const missing = from === null && to === null ? "both" : (from === null ? "first" : "last");
+    return { id: blockId, from, to, status: "no_pair", missing };
+  }
+
+  if (from === to) {
+    // Упор в потолок отличаем от простого "не изменилось": женщина с 60
+    // секундами из 60 не могла вырасти, и говорить ей "без изменений"
+    // нечестно.
+    const ceiling = blockRawCeiling(cfg);
+    const atCeiling = ceiling !== null && from >= ceiling;
+    return { id: blockId, from, to, status: atCeiling ? "ceiling" : "same", missing: null };
+  }
+
+  const better = blockLowerIsBetter(cfg) ? to < from : to > from;
+  return { id: blockId, from, to, status: better ? "better" : "worse", missing: null };
+}
+
+// Сравнение двух замеров целиком, в порядке BLOCKS.
+// Знаменатель comparable - блоки, где есть ОБА замера. Блок на потолке из
+// знаменателя не выкидываем: подкручивать дробь в свою пользу нельзя, а
+// почему он не вырос, видно в его собственной строке.
+function compareMeasurements(fromAnswers, toAnswers) {
+  const a = fromAnswers || {};
+  const b = toAnswers || {};
+  const rows = BLOCKS.map(block => {
+    const row = compareBlock(block.id, a[block.id], b[block.id]);
+    row.title = block.title;
+    return row;
+  });
+  const count = s => rows.filter(r => r.status === s).length;
+
+  return {
+    rows,
+    comparable: rows.filter(r => r.status !== "no_pair").length,
+    better: count("better"),
+    worse: count("worse"),
+    same: count("same") + count("ceiling"),
+  };
+}

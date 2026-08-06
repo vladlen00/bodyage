@@ -12,7 +12,7 @@
        используют. -->
   <script>(function(){try{if(localStorage.getItem('irena_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
   <title>Возраст тела</title>
-  <link rel="stylesheet" href="style.css?v=16">
+  <link rel="stylesheet" href="style.css?v=18">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -90,6 +90,13 @@
       <legend class="field-label" id="intro-who-label"></legend>
       <div class="opts-row" id="intro-who"></div>
     </fieldset>
+
+    <!-- Видна, только если замеров больше одного. Не раздел и не меню, одна
+         строка: иначе главный результат спринта пришлось бы добывать
+         повторным прохождением теста на двадцать минут с приседаниями. -->
+    <button type="button" class="link-row" id="intro-compare" hidden>
+      <i class="ti ti-arrows-diff"></i> <span></span>
+    </button>
   </div>
   <div class="screen-foot">
     <button type="button" class="btn btn-primary" id="intro-start"></button>
@@ -233,7 +240,48 @@
   <div class="screen-foot">
     <button type="button" class="btn btn-primary" id="result-save"></button>
     <p class="save-state" id="result-save-state" hidden></p>
+    <!-- Появляется ТОЛЬКО после успешного сохранения: compare работает по
+         сохранённым строкам, и до сохранения женщина сравнила бы старт со
+         своим прошлым замером вместо только что сделанного. -->
+    <button type="button" class="btn btn-primary" id="result-compare" hidden></button>
     <button type="button" class="btn btn-ghost" id="result-restart"></button>
+  </div>
+</section>
+
+<!-- ================= ЭКРАН: СТАРТ И СЕЙЧАС =================
+     Сравнение по СЫРЫМ числам, а не по баллам: у возраста тела есть
+     потолок, и самым спортивным иначе нечего показать в конце спринта. -->
+<section class="screen" id="view-compare" hidden>
+  <div class="screen-body">
+    <div class="cmp-head">
+      <div class="result-kicker" id="cmp-title"></div>
+      <div class="cmp-pair" id="cmp-pair">
+        <div class="cmp-side">
+          <div class="cmp-date" id="cmp-date-from"></div>
+          <div class="cmp-age" id="cmp-age-from"></div>
+        </div>
+        <div class="cmp-arrow">→</div>
+        <div class="cmp-side">
+          <div class="cmp-date" id="cmp-date-to"></div>
+          <div class="cmp-age" id="cmp-age-to"></div>
+        </div>
+      </div>
+      <p class="cmp-summary" id="cmp-summary"></p>
+    </div>
+
+    <!-- Обе оговорки про одно: цифру возраста сдвинуло не тело. -->
+    <p class="cmp-note" id="cmp-note-birthday" hidden></p>
+    <p class="cmp-note" id="cmp-note-config" hidden></p>
+
+    <div class="breakdown" id="cmp-blocks">
+      <div class="breakdown-title" id="cmp-blocks-title"></div>
+      <ul class="breakdown-list" id="cmp-list"></ul>
+    </div>
+
+    <p class="cmp-state" id="cmp-state" hidden></p>
+  </div>
+  <div class="screen-foot">
+    <button type="button" class="btn btn-ghost" id="cmp-back"></button>
   </div>
 </section>
 
@@ -256,9 +304,9 @@
 <!-- Замороженные пороги версии 1. ОБЯЗАТЕЛЬНО перед config.js: он их выбирает.
      Калибровка кладёт рядом norms-v2.js и подключает его тоже перед config.js. -->
 <script src="norms-v1.js?v=1"></script>
-<script src="config.js?v=14"></script>
-<script src="calc.js?v=5"></script>
+<script src="config.js?v=15"></script>
+<script src="calc.js?v=6"></script>
 <script src="auth.js?v=1"></script>
-<script src="app.js?v=15"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>

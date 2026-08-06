@@ -345,6 +345,51 @@ input[type=number] { -moz-appearance: textfield; }
   font-size: 13px; line-height: 1.55; color: var(--muted-home);
 }
 
+/* ===================== СТАРТ И СЕЙЧАС ===================== */
+/* Тумблер темы висит в правом верхнем углу окна, поэтому верхняя полоса
+   отдана ему, как и на результате. */
+#view-compare .screen-body { padding-top: 42px; }
+.cmp-head { text-align: center; padding: 18px 0 6px; }
+.cmp-pair { display: flex; align-items: flex-end; justify-content: center; gap: 16px; }
+.cmp-side { min-width: 0; }
+.cmp-date { font-size: 12px; color: var(--muted-home); margin-bottom: 3px; }
+/* Вдвое мельче одиночной цифры результата: их тут две, и обе нейтральные.
+   Ни зелёного, ни красного: рост показывают числа по блокам, а не эта пара. */
+.cmp-age {
+  font-size: 44px; font-weight: 800; line-height: 1;
+  color: var(--text-home); font-variant-numeric: tabular-nums;
+}
+.cmp-arrow { font-size: 20px; color: var(--muted-home); padding-bottom: 9px; }
+.cmp-summary { margin: 16px 0 0; font-size: 15px; font-weight: 700; color: var(--ink-strong); }
+/* Оговорки про день рождения и смену порогов. Служебный тон. */
+.cmp-note { margin: 12px 0 0; font-size: 13px; line-height: 1.55; color: var(--muted-home); }
+/* Список отбиваем от шапки и от оговорок: без этого "ПО БЛОКАМ" прилипает
+   к последней строке оговорки и читается её продолжением. */
+#view-compare .breakdown { margin-top: 20px; }
+.cmp-state { margin: 18px 0 0; text-align: center; font-size: 14px; color: var(--muted-home); }
+
+/* Второе число строки. Коралловое И жирное при улучшении: цвет не может
+   быть единственным сигналом, его различают не все. Стрелки роста в правой
+   ячейке намеренно НЕТ: у пульса покоя улучшение это падение числа, и на
+   одном экране пришлось бы рисовать две одинаковые стрелки разного смысла. */
+.cmp-to { font-weight: 500; }
+.cmp-to.up { font-weight: 700; color: var(--accent-deep); }
+/* Правая ячейка: "максимум" или "на старте пропущен". Не оценка, а факт. */
+.cmp-mark { flex: 0 0 auto; font-size: 12px; font-weight: 600; color: var(--muted-home); text-align: right; }
+
+/* Строка-ссылка на входе. Кнопка по разметке, ссылка по виду: заводить
+   ради неё раздел или меню незачем. */
+.link-row {
+  display: flex; align-items: flex-start; gap: 8px;
+  width: 100%; margin: 4px 0 0; padding: 12px 2px;
+  background: transparent; border: none; cursor: pointer;
+  font-family: inherit; font-size: 15px; font-weight: 600; line-height: 1.4;
+  text-align: left; color: var(--accent-deep); -webkit-tap-highlight-color: transparent;
+}
+/* Иконка равняется по ПЕРВОЙ строке, а не по середине: на 320px подпись
+   переносится на две строки, и по центру иконка повисает между ними. */
+.link-row i { font-size: 18px; line-height: 1.4; flex: 0 0 auto; }
+
 /* Слабое звено - единственный цветной блок. Тёплый, не тревожный.
    Красного нет нигде: результат не диагноз. */
 .weak {

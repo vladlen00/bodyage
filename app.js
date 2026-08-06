@@ -445,7 +445,7 @@ function $(id) { return document.getElementById(id); }
 // задели случайно. Блоки это большая часть теста, значит и почти все шансы
 // промахнуться. На входе и результате цена ошибки мала: там сразу видно,
 // что произошло, и можно вернуть обратно.
-const THEME_TOGGLE_SCREENS = ["view-intro", "view-safety", "view-resume", "view-result"];
+const THEME_TOGGLE_SCREENS = ["view-intro", "view-safety", "view-resume", "view-result", "view-compare"];
 
 function showScreen(id) {
   // ЛЮБАЯ смена экрана гасит видео. Раньше пауза висела только на крестике,
@@ -494,6 +494,8 @@ function renderIntro() {
     { value: "self",  label: TEXTS.intro.whoSelf },
     { value: "other", label: TEXTS.intro.whoOther },
   ], v => { state.profile.who = v; });
+
+  $("intro-compare").querySelector("span").textContent = TEXTS.compare.openFromIntro;
 
   // Пол не выбран заранее: тест проходят и женщины, и мужчины.
   selectOption($("intro-who"), "self");
@@ -1204,6 +1206,11 @@ function renderResult(r) {
   saveBtn.disabled = false;
   saveBtn.textContent = TEXTS.save.button;
   $("result-save-state").hidden = true;
+  // Сравнение открывается только по сохранённому замеру, поэтому кнопка
+  // уходит вместе со сбросом сохранения: после дозаполнения блока замер
+  // надо сохранить заново, и сравнивать до этого нечего.
+  $("result-compare").hidden = true;
+  $("result-compare").textContent = TEXTS.result.compare;
 }
 
 $("result-restart").addEventListener("click", () => {
@@ -1323,6 +1330,12 @@ async function saveMeasurement() {
     st.className = "save-state ok";
     st.textContent = currentSubject() === "guest" ? TEXTS.save.savedGuest : TEXTS.save.saved;
     btn.hidden = true;
+
+    // Замер лёг в историю, теперь сравнение возьмёт именно его. Гостевой
+    // замер не сравниваем: он про другого человека.
+    if (currentSubject() === "self" && await hasTwoMeasurements()) {
+      $("result-compare").hidden = false;
+    }
   } catch (e) {
     btn.disabled = false;
     btn.textContent = TEXTS.save.retry;
@@ -1334,6 +1347,201 @@ async function saveMeasurement() {
     } else {
       st.textContent = TEXTS.save.error;
     }
+  }
+}
+
+// ==========================================================================
+// ЭКРАН СРАВНЕНИЯ: СТАРТ И СЕЙЧАС
+// ==========================================================================
+// Сравниваем сырые числа: возраст тела упирается в потолок шкалы, и у
+// женщины в хорошей форме он не сдвинется за спринт вообще. Арифметика
+// живёт в calc.js, здесь только экран.
+
+// Куда вернуть по кнопке "Назад": пришли со входа или с результата.
+let compareReturnTo = "view-intro";
+
+function fmtDay(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.getDate() + " " + MONTHS_GENITIVE[d.getMonth()];
+}
+
+// Строка чисел блока, разобранная на три куска: второе число красится
+// отдельно, поэтому склеенной строкой обойтись нельзя.
+function compareValueParts(row) {
+  const block = BLOCKS.find(b => b.id === row.id);
+  const cfg = (block && (block.compareEcho || block.resultEcho)) || null;
+  if (!cfg) return { before: row.from + " → ", to: String(row.to), after: "" };
+
+  // Готовый шаблон нужен вставанию с пола: там не единицы, а доля от десяти.
+  if (cfg.template) {
+    const filled = cfg.template
+      .replace("{from}", row.from)
+      .replace("{max}", blockRawCeiling(SCORING[row.id]));
+    const half = filled.split("{to}");
+    return { before: half[0], to: String(row.to), after: half[1] || "" };
+  }
+
+  return {
+    before: (cfg.prefix || "") + row.from + " → ",
+    to: String(row.to),
+    // Склоняем по ВТОРОМУ числу: оно последнее в строке.
+    after: " " + pluralWord(row.to, cfg.forms) + (cfg.suffix || ""),
+  };
+}
+
+// Правая ячейка. Пусто у обычных строк: там всё сказано числами.
+function compareMarkText(row) {
+  if (row.status === "ceiling") return TEXTS.compare.ceiling;
+  if (row.status !== "no_pair") return "";
+  if (row.missing === "both") return TEXTS.compare.missingBoth;
+  return row.missing === "first" ? TEXTS.compare.missingFirst : TEXTS.compare.missingLast;
+}
+
+// Шапка. Числа не приукрашиваем и дробь в свою пользу не подкручиваем:
+// знаменатель - все блоки, где есть оба замера, включая упершиеся в потолок.
+function compareSummaryText(c) {
+  const T = TEXTS.compare;
+  if (c.comparable === 0) return T.nothingToCompare;
+  if (c.better === 0 && c.worse === 0) return T.hold;
+  if (c.better === 0) return T.noGrowth;
+  return (c.worse > 0 ? T.grewAndDropped : T.grew)
+    .replace("{n}", c.better)
+    .replace("{блоках}", pluralWord(c.better, BLOCKS_FORMS))
+    .replace("{c}", c.comparable)
+    .replace("{m}", c.worse);
+}
+
+function renderCompare(data) {
+  const T = TEXTS.compare;
+  $("cmp-title").textContent = T.title;
+  $("cmp-blocks-title").textContent = T.blocksTitle;
+  $("cmp-back").textContent = T.back;
+
+  const state = $("cmp-state");
+  const first = data && data.first;
+  const last = data && data.last;
+
+  // Замер один. Попасть сюда так нельзя, но между проверкой и запросом мог
+  // пройти любой срок, и падать на этом незачем.
+  if (!first || !last || data.same) {
+    $("cmp-pair").hidden = true;
+    $("cmp-summary").hidden = true;
+    $("cmp-blocks").hidden = true;
+    $("cmp-note-birthday").hidden = true;
+    $("cmp-note-config").hidden = true;
+    state.textContent = T.onlyOne;
+    state.hidden = false;
+    return;
+  }
+  state.hidden = true;
+  $("cmp-blocks").hidden = false;
+  $("cmp-summary").hidden = false;
+
+  // Пара цифр возраста. Если хотя бы у одного замера цифры нет (пропущено
+  // больше двух блоков), пары тоже нет: сравнивать не с чем.
+  const bothHaveAge = first.has_age && last.has_age
+    && typeof first.body_age === "number" && typeof last.body_age === "number";
+  $("cmp-pair").hidden = !bothHaveAge;
+  if (bothHaveAge) {
+    $("cmp-date-from").textContent = fmtDay(first.created_at);
+    $("cmp-date-to").textContent = fmtDay(last.created_at);
+    $("cmp-age-from").textContent = first.body_age;
+    $("cmp-age-to").textContent = last.body_age;
+  }
+
+  // День рождения между замерами двигает цифру сам: возраст тела считается
+  // от паспортного. За месяц спринта попадёт примерно каждая двенадцатая.
+  const birthday = bothHaveAge && first.age !== last.age;
+  $("cmp-note-birthday").textContent = T.birthday;
+  $("cmp-note-birthday").hidden = !birthday;
+
+  // Пороги могли пересобрать между замерами. Сырые числа этим не задеты,
+  // а две цифры возраста считались по разным шкалам, и молчать нельзя.
+  const changed = bothHaveAge && !!data.config_changed;
+  $("cmp-note-config").textContent = T.configChanged;
+  $("cmp-note-config").hidden = !changed;
+
+  const cmp = compareMeasurements(first.answers, last.answers);
+  $("cmp-summary").textContent = compareSummaryText(cmp);
+
+  const list = $("cmp-list");
+  list.innerHTML = "";
+  cmp.rows.forEach(row => {
+    const li = document.createElement("li");
+
+    const main = document.createElement("div");
+    main.className = "breakdown-main";
+
+    const name = document.createElement("span");
+    name.className = "breakdown-name";
+    name.textContent = row.title;
+    main.appendChild(name);
+
+    if (row.status !== "no_pair") {
+      const parts = compareValueParts(row);
+      const echo = document.createElement("span");
+      echo.className = "breakdown-echo";
+      echo.appendChild(document.createTextNode(parts.before));
+      const to = document.createElement("span");
+      to.className = "cmp-to" + (row.status === "better" ? " up" : "");
+      to.textContent = parts.to;
+      echo.appendChild(to);
+      echo.appendChild(document.createTextNode(parts.after));
+      main.appendChild(echo);
+    }
+
+    li.appendChild(main);
+
+    const markText = compareMarkText(row);
+    if (markText) {
+      const mark = document.createElement("span");
+      mark.className = "cmp-mark";
+      mark.textContent = markText;
+      li.appendChild(mark);
+    }
+
+    list.appendChild(li);
+  });
+}
+
+async function openCompare(returnTo) {
+  compareReturnTo = returnTo;
+  const state = $("cmp-state");
+
+  $("cmp-title").textContent = TEXTS.compare.title;
+  $("cmp-back").textContent = TEXTS.compare.back;
+  showScreen("view-compare");
+
+  try {
+    const data = await BodyAgeApi.compare({ subject: "self" });
+    renderCompare(data);
+  } catch (e) {
+    console.error("compare:", e.message);
+    $("cmp-pair").hidden = true;
+    $("cmp-summary").hidden = true;
+    $("cmp-blocks").hidden = true;
+    $("cmp-note-birthday").hidden = true;
+    $("cmp-note-config").hidden = true;
+    state.textContent = TEXTS.compare.error;
+    state.hidden = false;
+  }
+}
+
+$("cmp-back").addEventListener("click", () => showScreen(compareReturnTo));
+$("intro-compare").addEventListener("click", () => openCompare("view-intro"));
+$("result-compare").addEventListener("click", () => openCompare("view-result"));
+
+// Есть ли с чем сравнивать. Список лёгкий: answers в него не входит.
+// Гостевые замеры не в счёт: они лежат общей кучей под одним subject, и
+// "первый гостевой" может оказаться другим человеком.
+async function hasTwoMeasurements() {
+  try {
+    const data = await BodyAgeApi.list({ subject: "self", limit: 2 });
+    return !!data && Array.isArray(data.measurements) && data.measurements.length > 1;
+  } catch (e) {
+    console.error("list:", e.message);
+    return false;
   }
 }
 
@@ -1406,6 +1614,10 @@ $("result-save").addEventListener("click", saveMeasurement);
   if (!allowed) return;      // экран показал auth.js
 
   flushPending();            // молча и не дожидаясь
+
+  // Строка-ссылка на сравнение. Не дожидаемся: экран входа не должен
+  // ждать сети, а строка появится, когда ответ придёт.
+  hasTwoMeasurements().then(has => { $("intro-compare").hidden = !has; });
 
   let draft = null;
   try {
