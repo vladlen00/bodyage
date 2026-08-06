@@ -1083,7 +1083,12 @@ function renderResult(r) {
       cap.textContent = TEXTS.result.younger.replace("{n}", n).replace("{years}", yearsWord(n));
       cap.className = "result-caption younger";
     } else if (r.shift === 0) {
-      cap.textContent = TEXTS.result.same;
+      // Ноль бывает двух разных сортов. Обычный - тело правда соответствует
+      // возрасту. Второй - результат упёрся в нижнюю границу, и ноль тут
+      // следствие ограничителя: в 18 лет с лучшим возможным результатом
+      // подпись "соответствует возрасту" читается как насмешка. Разводим.
+      const atFloor = r.clampedTo === "min";
+      cap.textContent = atFloor ? TEXTS.result.atFloor : TEXTS.result.same;
       cap.className = "result-caption same";
     } else {
       cap.textContent = TEXTS.result.older.replace("{n}", n).replace("{years}", yearsWord(n));
@@ -1111,6 +1116,11 @@ function renderResult(r) {
       limitText = TEXTS.result.limitCeiling.replace("{n}", LIMITS.resultAgeMax);
     } else if (r.atScaleTop) {
       limitText = TEXTS.result.limitTop;
+    }
+    // Хвост про спринт дописывается к ЛЮБОЙ из причин: во всех трёх случаях
+    // цифру держит шкала, значит и через месяц она будет той же.
+    if (limitText) {
+      limitText += " " + TEXTS.result.limitSprint;
     }
   }
   limit.textContent = limitText;

@@ -233,6 +233,12 @@ function computeResult(answers, profile) {
     if (weakest === null || b.score < weakest.score) weakest = b;
   }
 
+  // Слабого звена НЕТ, когда слабейший балл уже максимальный. Без этой
+  // строчки при всех тройках слабейшим назначался первый блок по порядку,
+  // и женщина с идеальным результатом читала на экране, что у неё проблема
+  // с сердцем. Механика была верная, экран врал.
+  if (weakest && weakest.score >= MAX_SCORE_PER_BLOCK) weakest = null;
+
   const base = {
     perBlock,
     completed,
