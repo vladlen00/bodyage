@@ -495,6 +495,7 @@ function renderIntro() {
     { value: "other", label: TEXTS.intro.whoOther },
   ], v => { state.profile.who = v; });
 
+  $("intro-result").querySelector("span").textContent = TEXTS.result.openFromIntro;
   $("intro-compare").querySelector("span").textContent = TEXTS.compare.openFromIntro;
 
   // Пол не выбран заранее: тест проходят и женщины, и мужчины.
@@ -1065,9 +1066,24 @@ function blockEcho(entry) {
   return prefix + n + " " + pluralWord(n, cfg.forms) + (cfg.suffix || "");
 }
 
-function renderResult(r) {
+// r     - объект расчёта: свежий из computeResult или восстановленный из
+//         сохранённой строки через resultFromSaved.
+// saved  - сама строка базы, если замер восстановленный, иначе ничего.
+//          Различий на экране четыре: дата, отсутствие кнопки сохранения,
+//          выключенное дозаполнение и подпись кнопки повтора.
+function renderResult(r, saved) {
   const head = $("result-head");
   const none = $("result-none");
+
+  // Дата замера. У свежего её нет: он "сегодня", и строка занимала бы место
+  // зря. У восстановленного она обязательна, его открывают и через месяц.
+  const when = $("result-when");
+  if (saved && saved.created_at) {
+    when.textContent = TEXTS.result.savedOn.replace("{date}", fmtDayFull(saved.created_at));
+    when.hidden = false;
+  } else {
+    when.hidden = true;
+  }
 
   if (r.hasAge) {
     head.hidden = false;
@@ -1156,6 +1172,24 @@ function renderResult(r) {
     // Пропущенный блок - не приговор: строка кликабельна и ведёт обратно в
     // блок. Иначе три пропуска убивают результат, а исправить это можно
     // только пройдя весь тест заново.
+    //
+    // На ВОССТАНОВЛЕННОМ замере строка не кликается. Причина не в том, что
+    // дозаполнение там неуместно: openBlockForFix уводит в блок с пустым
+    // state.answers, и "Дальше" оттуда вернуло бы результат, пересчитанный
+    // из одного этого блока. То есть тап по строке стёр бы ей с экрана
+    // ровно то, за чем она пришла. Да и черновик после сохранения удалён:
+    // дописывать некуда, вышел бы второй замер в истории, а не правка
+    // первого.
+    if (b.skipped && saved) {
+      const mark = document.createElement("span");
+      mark.className = "breakdown-mark";
+      mark.textContent = TEXTS.result.blockSkipped;
+      li.appendChild(name);
+      li.appendChild(mark);
+      list.appendChild(li);
+      return;
+    }
+
     if (b.skipped) {
       li.className = "is-skipped";
       const fix = document.createElement("button");
@@ -1196,12 +1230,33 @@ function renderResult(r) {
     list.appendChild(li);
   });
 
-  $("result-restart").textContent = TEXTS.result.restart;
+  const saveBtn = $("result-save");
+  const compareBtn = $("result-compare");
+  const restartBtn = $("result-restart");
+  compareBtn.textContent = TEXTS.result.compare;
+
+  // Восстановленный замер сохранять не надо: он уже в истории. Второй
+  // кнопки вместо "Сохранить результат" тут нет намеренно, она была бы
+  // прочитана как "сохранить ещё раз".
+  if (saved) {
+    // lastResult заряжает кнопку сохранения. Оставить в ней чужой объект
+    // нельзя: он ушёл бы в базу вместе с пустыми state.answers.
+    lastResult = null;
+    saveBtn.hidden = true;
+    $("result-save-state").hidden = true;
+    compareBtn.hidden = !hasSecondMeasurement();
+    restartBtn.textContent = TEXTS.result.restartSaved;
+    // Единственная кнопка на экране не может быть тихой.
+    restartBtn.className = compareBtn.hidden ? "btn btn-primary" : "btn btn-ghost";
+    return;
+  }
+
+  restartBtn.textContent = TEXTS.result.restart;
+  restartBtn.className = "btn btn-ghost";
 
   // Кнопка сохранения возвращается в исходное состояние на каждый пересчёт:
   // после дозаполнения пропущенного блока сохранять надо заново.
   lastResult = r;
-  const saveBtn = $("result-save");
   saveBtn.hidden = false;
   saveBtn.disabled = false;
   saveBtn.textContent = TEXTS.save.button;
@@ -1209,8 +1264,7 @@ function renderResult(r) {
   // Сравнение открывается только по сохранённому замеру, поэтому кнопка
   // уходит вместе со сбросом сохранения: после дозаполнения блока замер
   // надо сохранить заново, и сравнивать до этого нечего.
-  $("result-compare").hidden = true;
-  $("result-compare").textContent = TEXTS.result.compare;
+  compareBtn.hidden = true;
 }
 
 $("result-restart").addEventListener("click", () => {
@@ -1308,6 +1362,10 @@ async function flushPending() {
   try {
     await BodyAgeApi.save(JSON.parse(raw));
     clearPending();
+    // В истории только что появилась строка, о которой запрос на входе не
+    // знал: он мог уйти раньше. Спрашиваем заново, иначе строка "Посмотреть
+    // свой результат" не появится до следующего входа.
+    loadHistory();
   } catch (e) {
     console.error("отложенный замер не ушёл:", e.message);
   }
@@ -1325,16 +1383,18 @@ async function saveMeasurement() {
   st.textContent = TEXTS.save.saving;
 
   try {
-    await BodyAgeApi.save(payload);
+    const data = await BodyAgeApi.save(payload);
     clearPending();
     st.className = "save-state ok";
     st.textContent = currentSubject() === "guest" ? TEXTS.save.savedGuest : TEXTS.save.saved;
     btn.hidden = true;
 
     // Замер лёг в историю, теперь сравнение возьмёт именно его. Гостевой
-    // замер не сравниваем: он про другого человека.
-    if (currentSubject() === "self" && await hasTwoMeasurements()) {
-      $("result-compare").hidden = false;
+    // замер не трогает ни историю, ни строки на входе: он про другого
+    // человека и лежит под своим subject.
+    if (currentSubject() === "self") {
+      await rememberSaved(data && data.measurement, payload.answers);
+      $("result-compare").hidden = !hasSecondMeasurement();
     }
   } catch (e) {
     btn.disabled = false;
@@ -1351,6 +1411,79 @@ async function saveMeasurement() {
 }
 
 // ==========================================================================
+// ИСТОРИЯ ЗАМЕРОВ
+// ==========================================================================
+// Один запрос на входе отвечает сразу на три вопроса: есть ли сохранённый
+// замер, есть ли с чем его сравнивать и что именно показывать. Действие
+// compare без параметров отдаёт первый и последний замер ЦЕЛИКОМ, вместе с
+// answers, поэтому отдельное действие "последний замер" в edge-функции не
+// понадобилось. list для этого не годится: answers в него не входит
+// намеренно, он для списка.
+//
+// Гостевые замеры сюда не попадают: они лежат общей кучей под одним
+// subject='guest', и "последний гостевой" может оказаться другим человеком.
+let historyCache = null;   // { first, last, same, config_changed } или null
+
+async function loadHistory() {
+  try {
+    historyCache = await BodyAgeApi.compare({ subject: "self" });
+  } catch (e) {
+    // Строки на входе просто не появятся. Сам тест от истории не зависит,
+    // ронять из-за неё вход нельзя.
+    console.error("history:", e.message);
+    historyCache = null;
+  }
+  reflectIntroRows();
+}
+
+function hasSavedMeasurement() {
+  return !!(historyCache && historyCache.last);
+}
+
+// Есть ли ВТОРОЙ замер. same означает, что первый и последний это одна и та
+// же строка, то есть замер всего один.
+function hasSecondMeasurement() {
+  return !!(historyCache && historyCache.first && historyCache.last && !historyCache.same);
+}
+
+// Две строки, а не одна умная. Строка сравнения уже жила до этой правки и
+// ведёт к главному результату спринта: свести обе в одну значило бы отодвинуть
+// финал на лишний тап ровно для тех, кто до финала дошёл.
+function reflectIntroRows() {
+  $("intro-result").hidden = !hasSavedMeasurement();
+  $("intro-compare").hidden = !hasSecondMeasurement();
+}
+
+// Свежесохранённый замер кладём в кэш руками: иначе она сохранит, вернётся
+// на вход и увидит по строке ПОЗАВЧЕРАШНИЙ замер. Ответ save приходит без
+// answers (их нет в списочных колонках), поэтому дописываем те, что и
+// отправляли.
+async function rememberSaved(measurement, answers) {
+  // Кэша нет - значит запрос на входе не прошёл, и что лежит в истории, мы
+  // не знаем. Не гадаем, а спрашиваем заново. Ответ ждём: сразу за этим
+  // решается, показывать ли кнопку сравнения.
+  if (!measurement || !historyCache) return loadHistory();
+
+  const row = Object.assign({}, measurement, { answers });
+  if (!historyCache.first) historyCache.first = row;
+  historyCache.last = row;
+  historyCache.same = historyCache.first.id === row.id;
+  reflectIntroRows();
+}
+
+// Экран результата последнего замера, восстановленный из базы. Цифры берутся
+// из строки, а не пересчитываются: на экране обязано быть ровно то, что она
+// видела в день замера.
+function openSavedResult() {
+  if (!hasSavedMeasurement()) return;
+  const row = historyCache.last;
+  renderResult(resultFromSaved(row), row);
+  showScreen("view-result");
+}
+
+$("intro-result").addEventListener("click", openSavedResult);
+
+// ==========================================================================
 // ЭКРАН СРАВНЕНИЯ: СТАРТ И СЕЙЧАС
 // ==========================================================================
 // Сравниваем сырые числа: возраст тела упирается в потолок шкалы, и у
@@ -1364,6 +1497,15 @@ function fmtDay(iso) {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "";
   return d.getDate() + " " + MONTHS_GENITIVE[d.getMonth()];
+}
+
+// То же самое, но с годом, когда год не текущий. Дата сохранённого замера
+// живёт над цифрой, и "6 августа" без года через полтора года соврёт.
+function fmtDayFull(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const day = fmtDay(iso);
+  return d.getFullYear() === new Date().getFullYear() ? day : day + " " + d.getFullYear();
 }
 
 // Строка чисел блока, разобранная на три куска: второе число красится
@@ -1515,6 +1657,10 @@ async function openCompare(returnTo) {
 
   try {
     const data = await BodyAgeApi.compare({ subject: "self" });
+    // Данные свежее того, что лежит в кэше с момента входа: забираем их и
+    // туда, чтобы строки на входе и восстановленный замер не отставали.
+    historyCache = data;
+    reflectIntroRows();
     renderCompare(data);
   } catch (e) {
     console.error("compare:", e.message);
@@ -1531,19 +1677,6 @@ async function openCompare(returnTo) {
 $("cmp-back").addEventListener("click", () => showScreen(compareReturnTo));
 $("intro-compare").addEventListener("click", () => openCompare("view-intro"));
 $("result-compare").addEventListener("click", () => openCompare("view-result"));
-
-// Есть ли с чем сравнивать. Список лёгкий: answers в него не входит.
-// Гостевые замеры не в счёт: они лежат общей кучей под одним subject, и
-// "первый гостевой" может оказаться другим человеком.
-async function hasTwoMeasurements() {
-  try {
-    const data = await BodyAgeApi.list({ subject: "self", limit: 2 });
-    return !!data && Array.isArray(data.measurements) && data.measurements.length > 1;
-  } catch (e) {
-    console.error("list:", e.message);
-    return false;
-  }
-}
 
 // ==========================================================================
 // ЭКРАН НЕЗАКОНЧЕННОГО ЗАМЕРА
@@ -1615,9 +1748,11 @@ $("result-save").addEventListener("click", saveMeasurement);
 
   flushPending();            // молча и не дожидаясь
 
-  // Строка-ссылка на сравнение. Не дожидаемся: экран входа не должен
-  // ждать сети, а строка появится, когда ответ придёт.
-  hasTwoMeasurements().then(has => { $("intro-compare").hidden = !has; });
+  // История для строк на входе. Не дожидаемся: экран входа не должен ждать
+  // сети, строки появятся, когда ответ придёт. Ответ приезжает вместе с
+  // ответами последнего замера, поэтому тап по строке открывает результат
+  // сразу, без второго похода в сеть и без состояния загрузки.
+  loadHistory();
 
   let draft = null;
   try {

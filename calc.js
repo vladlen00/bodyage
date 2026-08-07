@@ -188,6 +188,40 @@ function yearsWord(n) { return pluralWord(n, YEARS_FORMS); }
 // Склонение слова "день" для строки про начатый замер.
 function daysWord(n) { return pluralWord(n, DAYS_FORMS); }
 
+// Сдвиг возраста по нормированной сумме. Отдельной функцией, потому что
+// нужен дважды: живому расчёту и восстановлению сохранённого замера.
+function shiftForEquivalent(equivalent) {
+  const row = AGE_SHIFT.find(r => equivalent >= r.from && equivalent <= r.to) || null;
+  return { rawShift: row ? row.shift : 0, title: row ? row.title : "" };
+}
+
+// Упёрлась ли цифра в край шкалы, и в какой именно. Экран обязан это сказать:
+// живой проход показал, что молчаливый упор читается как поломка приложения.
+// Ирена ввела 39 лет с отличными результатами и получила 29, потом ввела 18 с
+// теми же результатами и получила 18 с подписью "соответствует возрасту".
+//
+// clampedTo - сработала граница возраста: урезанный сдвиг разошёлся с
+// исходным, то есть цифру держит LIMITS, а не результат.
+//
+// atScaleTop - сдвиг уже лучший из существующих полос, лучше просто нет.
+// Считаем из конфига, а не числом: полосы будут править калибровкой.
+// ВАЖНО: это НЕ то же самое, что "все блоки на высший балл". Верхняя полоса
+// AGE_SHIFT начинается с 20 из 21, поэтому цифра упирается в предел на балл
+// раньше максимума, и улучшение с 20 до 21 её не двигает.
+//
+// shift сюда приходит УРЕЗАННЫЙ: тот, что реально на экране.
+function scaleEdges(equivalent, age, shift) {
+  const rawShift = shiftForEquivalent(equivalent).rawShift;
+  const bestShift = AGE_SHIFT.reduce((m, x) => Math.min(m, x.shift), Infinity);
+  return {
+    rawShift,
+    clampedTo: shift === rawShift
+      ? null
+      : (age + rawShift < LIMITS.resultAgeMin ? "min" : "max"),
+    atScaleTop: rawShift === bestShift,
+  };
+}
+
 // answers: { blockId: answer | null }. Пропущенный блок = null.
 // profile: { age, sex }.
 function computeResult(answers, profile) {
@@ -259,8 +293,8 @@ function computeResult(answers, profile) {
     (sum / (MAX_SCORE_PER_BLOCK * completed)) * RESULT_RULES.normalizeTo
   );
 
-  const row = AGE_SHIFT.find(r => equivalent >= r.from && equivalent <= r.to) || null;
-  const rawShift = row ? row.shift : 0;
+  const band = shiftForEquivalent(equivalent);
+  const rawShift = band.rawShift;
 
   let bodyAge = profile.age + rawShift;
 
@@ -278,24 +312,10 @@ function computeResult(answers, profile) {
   // подпись "на 10 лет моложе" будут спорить друг с другом на экране.
   const shift = bodyAge - profile.age;
 
-  // Упёрлась ли цифра в край шкалы. Экран обязан это сказать: живой проход
-  // показал, что молчаливый упор читается как поломка приложения. Ирена
-  // ввела 39 лет с отличными результатами и получила 29, потом ввела 18 с
-  // теми же результатами и получила 18 с подписью "соответствует возрасту".
-  //
-  // clampedTo - сработала граница возраста: урезанный сдвиг разошёлся с
-  // исходным, то есть цифру держит LIMITS, а не результат.
-  const clampedTo = shift === rawShift
-    ? null
-    : (profile.age + rawShift < LIMITS.resultAgeMin ? "min" : "max");
-
-  // atScaleTop - сдвиг уже лучший из существующих полос, лучше просто нет.
-  // Считаем из конфига, а не числом: полосы будут править калибровкой.
-  // ВАЖНО: это НЕ то же самое, что "все блоки на высший балл". Верхняя
-  // полоса AGE_SHIFT начинается с 20 из 21, поэтому цифра упирается в
-  // предел на балл раньше максимума, и улучшение с 20 до 21 её не двигает.
-  const bestShift = AGE_SHIFT.reduce((m, x) => Math.min(m, x.shift), Infinity);
-  const atScaleTop = rawShift === bestShift;
+  // Края шкалы: почему цифру держит не результат, а граница. Правила живут
+  // в scaleEdges, потому что тем же вопросом задаётся и восстановленный
+  // сохранённый замер.
+  const edges = scaleEdges(equivalent, profile.age, shift);
 
   return Object.assign(base, {
     hasAge: true,
@@ -303,9 +323,97 @@ function computeResult(answers, profile) {
     rawShift,
     shift,
     bodyAge,
-    clampedTo,
-    atScaleTop,
-    title: row ? row.title : "",
+    clampedTo: edges.clampedTo,
+    atScaleTop: edges.atScaleTop,
+    title: band.title,
+  });
+}
+
+// ==========================================================================
+// ВОССТАНОВЛЕНИЕ СОХРАНЁННОГО ЗАМЕРА
+// ==========================================================================
+// Собирает объект той же формы, что computeResult, из строки базы. Цифры
+// берутся ИЗ СТРОКИ, а не пересчётом: на экране должно быть ровно то, что
+// она видела своими глазами в день замера. Пересчёт сегодня дал бы то же
+// самое (версия порогов одна и заморожена), но после калибровки разойдётся,
+// и молча другая цифра за тот же замер читается как враньё приложения.
+
+// Значение блока в том виде, в каком его показывал экран результата.
+// blockRawValue намеренно НЕ режет секунды потолком (сравнению нужно
+// введённое число), а scoreBlock режет. Здесь важен экран: женщина с 75
+// секундами баланса видела в разборе 60, и увидеть 75 неделю спустя она
+// не должна.
+function savedBlockValue(blockId, answer) {
+  const cfg = SCORING[blockId];
+  const v = blockRawValue(blockId, answer);
+  if (v === null) return null;
+  if (cfg && cfg.cap !== undefined && v > cfg.cap) return cfg.cap;
+  return v;
+}
+
+function resultFromSaved(row) {
+  const answers = (row && row.answers) || {};
+  const scores = (row && row.scores) || {};
+
+  const perBlock = [];
+  let sum = 0;
+  let completed = 0;
+
+  for (const block of BLOCKS) {
+    const score = scores[block.id];
+    // Ноль это балл, а не отсутствие ответа: проверка строго на пустоту.
+    if (score === null || score === undefined) {
+      perBlock.push({
+        id: block.id, title: block.title, skipped: true, score: null, rating: null,
+      });
+      continue;
+    }
+    sum += score;
+    completed += 1;
+    perBlock.push({
+      id: block.id,
+      title: block.title,
+      skipped: false,
+      score,
+      rating: null,
+      value: savedBlockValue(block.id, answers[block.id]),
+    });
+  }
+
+  // Слабое звено берём из строки, а не ищем заново: тогда его выбрали по
+  // тем порогам, и второй раз тот же вопрос задавать незачем.
+  const weakId = row ? row.weakest_block : null;
+  const weakest = weakId && WEAK_LINK[weakId]
+    ? Object.assign(
+        { id: weakId, score: scores[weakId] === undefined ? null : scores[weakId] },
+        WEAK_LINK[weakId]
+      )
+    : null;
+
+  const base = { perBlock, completed, skipped: BLOCKS.length - completed, sum, weakest };
+
+  if (!row || !row.has_age || typeof row.body_age !== "number") {
+    return Object.assign(base, { hasAge: false });
+  }
+
+  const shift = typeof row.shift === "number" ? row.shift : row.body_age - row.age;
+
+  // Строка про край шкалы объясняет, почему цифру держит ШКАЛА. Значит она
+  // имеет право появиться, только если шкала та же самая. После калибровки
+  // она объясняла бы уже другие полосы, чем те, по которым посчитана цифра
+  // в строке, поэтому при чужой версии порогов её просто нет.
+  let edges = { clampedTo: null, atScaleTop: false };
+  if (row.config_version === CONFIG_VERSION && typeof row.equivalent === "number") {
+    edges = scaleEdges(row.equivalent, row.age, shift);
+  }
+
+  return Object.assign(base, {
+    hasAge: true,
+    equivalent: typeof row.equivalent === "number" ? row.equivalent : null,
+    shift,
+    bodyAge: row.body_age,
+    clampedTo: edges.clampedTo,
+    atScaleTop: edges.atScaleTop,
   });
 }
 

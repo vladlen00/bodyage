@@ -322,6 +322,12 @@ input[type=number] { -moz-appearance: textfield; }
    первую строку результата: на 320px заголовок "Возраст тела пока не считаем"
    уезжал прямо под кнопку. Отдаём тумблеру полосу сверху. */
 #view-result .screen-body { padding-top: 42px; }
+/* Дата сохранённого замера. Тихая служебная строка: она отвечает на вопрос
+   "когда", а не спорит за внимание с цифрой под собой. */
+.result-when {
+  text-align: center; padding: 14px 0 0;
+  font-size: 13px; font-weight: 600; color: var(--muted-home);
+}
 .result-head { text-align: center; padding: 18px 0 6px; }
 .result-kicker { font-size: 13px; font-weight: 600; color: var(--muted-home); margin-bottom: 4px; }
 /* Цифра НЕЙТРАЛЬНЫМ цветом текста: не зелёная и не красная. */
@@ -375,7 +381,9 @@ input[type=number] { -moz-appearance: textfield; }
 .cmp-to { font-weight: 500; }
 .cmp-to.up { font-weight: 700; color: var(--accent-deep); }
 /* Правая ячейка: "максимум" или "на старте пропущен". Не оценка, а факт. */
-.cmp-mark { flex: 0 0 auto; font-size: 12px; font-weight: 600; color: var(--muted-home); text-align: right; }
+/* Правая ячейка строки блока. Одна и та же на двух экранах: "максимум" в
+   сравнении и "пропущен" в разборе восстановленного замера. */
+.cmp-mark, .breakdown-mark { flex: 0 0 auto; font-size: 12px; font-weight: 600; color: var(--muted-home); text-align: right; }
 
 /* Строка-ссылка на входе. Кнопка по разметке, ссылка по виду: заводить
    ради неё раздел или меню незачем. */

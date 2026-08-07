@@ -12,7 +12,7 @@
        используют. -->
   <script>(function(){try{if(localStorage.getItem('irena_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
   <title>Возраст тела</title>
-  <link rel="stylesheet" href="style.css?v=18">
+  <link rel="stylesheet" href="style.css?v=19">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -90,6 +90,13 @@
       <legend class="field-label" id="intro-who-label"></legend>
       <div class="opts-row" id="intro-who"></div>
     </fieldset>
+
+    <!-- Видна, как только есть хотя бы один свой замер. Кнопка "Сохранить
+         результат" обещает, что результат где-то останется, и до этой строки
+         посмотреть его было негде: женщина сохраняла и теряла. -->
+    <button type="button" class="link-row" id="intro-result" hidden>
+      <i class="ti ti-clipboard-text"></i> <span></span>
+    </button>
 
     <!-- Видна, только если замеров больше одного. Не раздел и не меню, одна
          строка: иначе главный результат спринта пришлось бы добывать
@@ -212,6 +219,11 @@
 <!-- ================= ЭКРАН 10: РЕЗУЛЬТАТ ================= -->
 <section class="screen" id="view-result" hidden>
   <div class="screen-body">
+    <!-- Дата. Только у восстановленного замера: у свежего она "сегодня" и
+         занимала бы место зря. Живёт НАД result-head, потому что видна
+         должна быть и тогда, когда цифры нет (пропущено больше двух блоков). -->
+    <div class="result-when" id="result-when" hidden></div>
+
     <div class="result-head" id="result-head">
       <div class="result-kicker" id="result-title"></div>
       <div class="result-age" id="result-age"></div>
@@ -304,9 +316,9 @@
 <!-- Замороженные пороги версии 1. ОБЯЗАТЕЛЬНО перед config.js: он их выбирает.
      Калибровка кладёт рядом norms-v2.js и подключает его тоже перед config.js. -->
 <script src="norms-v1.js?v=1"></script>
-<script src="config.js?v=15"></script>
-<script src="calc.js?v=6"></script>
+<script src="config.js?v=16"></script>
+<script src="calc.js?v=7"></script>
 <script src="auth.js?v=1"></script>
-<script src="app.js?v=16"></script>
+<script src="app.js?v=17"></script>
 </body>
 </html>
