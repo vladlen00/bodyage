@@ -1,0 +1,23 @@
+/* Tabler Icons 2.47.0, MIT. Подмножество: только иконки из кода приложения.
+   Не править руками: собирается biohack/tools/irenabio-app/build_icons.py. */
+@font-face{font-family:"tabler-icons";font-style:normal;font-weight:400;font-display:block;src:url("fonts/tabler-subset.woff2?v=1") format("woff2")}
+.ti{font-family:"tabler-icons" !important;speak:none;font-style:normal;font-weight:normal;font-variant:normal;text-transform:none;line-height:1;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.ti-activity-heartbeat:before{content:"\f0db"}
+.ti-alert-circle:before{content:"\ea05"}
+.ti-armchair:before{content:"\ef9e"}
+.ti-arrows-diff:before{content:"\f296"}
+.ti-barbell:before{content:"\eff0"}
+.ti-clipboard-text:before{content:"\f089"}
+.ti-eye-closed:before{content:"\f7ec"}
+.ti-heart-rate-monitor:before{content:"\ef61"}
+.ti-heartbeat:before{content:"\ef92"}
+.ti-lock:before{content:"\eae2"}
+.ti-moon:before{content:"\eaf8"}
+.ti-player-play:before{content:"\ed46"}
+.ti-shield-check:before{content:"\eb22"}
+.ti-shield-lock:before{content:"\ed58"}
+.ti-stairs-up:before{content:"\eca5"}
+.ti-sun:before{content:"\eb30"}
+.ti-wifi-off:before{content:"\ecfa"}
+.ti-x:before{content:"\eb55"}
+.ti-yoga:before{content:"\f01f"}
