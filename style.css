@@ -126,6 +126,21 @@ body.no-scroll { overflow: hidden; }
   -webkit-tap-highlight-color: transparent;
 }
 
+/* ===================== ВОЗВРАТ В ПРИЛОЖЕНИЕ (только веб) =====================
+   Зеркало тумблера темы слева. Экраны, где она видна, сдвигаем вниз на её высоту:
+   иначе она легла бы на значок в начале экрана. */
+.app-back {
+  position: fixed; top: calc(12px + env(safe-area-inset-top)); left: 14px; z-index: 40;
+  height: 38px; padding: 0 14px; border-radius: 12px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); color: var(--muted-home);
+  display: flex; align-items: center; font-family: inherit; font-size: 13px; font-weight: 600;
+  -webkit-tap-highlight-color: transparent;
+}
+.app-back[hidden] { display: none; }
+body.web-back :is(#view-intro, #view-safety, #view-resume, #view-result, #view-compare) {
+  padding-top: calc(50px + env(safe-area-inset-top));
+}
+
 /* ===================== ПРОГРЕСС =====================
    Место под тумблер темы здесь больше не резервируется: на экранах блоков
    и паузы его нет совсем, а .screen-head есть только у блока. Полоса снова

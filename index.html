@@ -2,6 +2,32 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
+  <!-- ВОЗВРАТ НА ПЛАТФОРМУ (03.10.2026, только веб). Дословно как в cycle: app.irenabio.com
+       открывает тест с #irena_token=...&irena_return=<адрес дня>. Адрес запоминаем в
+       sessionStorage по ключу аппа и снимаем из адресной строки (до auth.js, который
+       забирает токен). Вход с токеном БЕЗ адреса стирает сохранённый.
+       Принимаем только https://app.irenabio.com/. В Телеграме токена в хэше нет - no-op. -->
+  <script>
+  (function () {
+    try {
+      var raw = (location.hash || "").replace(/^#/, "");
+      if (!raw) return;
+      var p = new URLSearchParams(raw);
+      if (!p.get("irena_token")) return;
+      var key = "irena_return:" + location.pathname.split("/")[1];
+      var r = p.get("irena_return") || "";
+      if (r.indexOf("https://app.irenabio.com/") === 0) sessionStorage.setItem(key, r);
+      else sessionStorage.removeItem(key);
+      if (p.has("irena_return")) {
+        p.delete("irena_return");
+        history.replaceState(null, "", location.pathname + location.search + "#" + p.toString());
+      }
+    } catch (e) {}
+  })();
+  function irenaReturnUrl() {
+    try { return sessionStorage.getItem("irena_return:" + location.pathname.split("/")[1]) || ""; } catch (e) { return ""; }
+  }
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <!-- Тема: применяем ДО рендера, чтобы не было вспышки светлого. Дефолт светлый.
        ВНИМАНИЕ: в Телеграме мини-аппа живёт на том же origin vladlen00.github.io,
@@ -12,7 +38,7 @@
        используют. -->
   <script>(function(){try{if(localStorage.getItem('irena_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
   <title>Возраст тела</title>
-  <link rel="stylesheet" href="style.css?v=19">
+  <link rel="stylesheet" href="style.css?v=20">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -25,6 +51,12 @@
 <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Переключить тему">
   <i class="ti ti-moon" id="theme-toggle-ic"></i>
 </button>
+
+<!-- Возврат в веб-приложение (как в cycle). Скрыта по умолчанию; app.js показывает её
+     только при веб-заходе (нет Telegram initData) и только там же, где тумблер темы:
+     на блоках и паузе её нет, чтобы не уйти из теста случайным касанием. -->
+<button type="button" class="app-back" id="app-back" hidden
+  onclick="location.href=irenaReturnUrl()||'https://app.irenabio.com/'">← В приложение</button>
 
 <!-- ================= ЭКРАН: ПРОВЕРКА ДОСТУПА =================
      Показывается только на время серверной проверки веб-токена. -->
@@ -321,6 +353,6 @@
 <script src="config.js?v=16"></script>
 <script src="calc.js?v=7"></script>
 <script src="auth.js?v=1"></script>
-<script src="app.js?v=17"></script>
+<script src="app.js?v=18"></script>
 </body>
 </html>

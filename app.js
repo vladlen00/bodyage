@@ -447,6 +447,9 @@ function $(id) { return document.getElementById(id); }
 // что произошло, и можно вернуть обратно.
 const THEME_TOGGLE_SCREENS = ["view-intro", "view-safety", "view-resume", "view-result", "view-compare"];
 
+// Веб-заход: кнопка «В приложение» видна там же, где тумблер. Ставит init после гейта.
+let WEB_BACK = false;
+
 function showScreen(id) {
   // ЛЮБАЯ смена экрана гасит видео. Раньше пауза висела только на крестике,
   // и всё остальное её обходило: "Дальше", "Назад", "Пропустить блок",
@@ -458,6 +461,7 @@ function showScreen(id) {
   // продолжение замера тоже .screen, и они обязаны уходить.
   document.querySelectorAll(".screen").forEach(el => { el.hidden = el.id !== id; });
   $("theme-toggle").hidden = !THEME_TOGGLE_SCREENS.includes(id);
+  $("app-back").hidden = !(WEB_BACK && THEME_TOGGLE_SCREENS.includes(id));
   const body = document.querySelector("#" + id + " .screen-body");
   if (body) body.scrollTop = 0;
   // У .screen стоит min-height: 100dvh, поэтому на длинном содержимом растёт
@@ -1745,6 +1749,10 @@ $("result-save").addEventListener("click", saveMeasurement);
 
   const allowed = await IrenaAuth.checkAccess();
   if (!allowed) return;      // экран показал auth.js
+
+  // Нет Telegram initData = веб. В Телеграме возврат родной, кнопка остаётся скрытой.
+  WEB_BACK = !IrenaAuth.getInitData();
+  document.body.classList.toggle("web-back", WEB_BACK);
 
   flushPending();            // молча и не дожидаясь
 
