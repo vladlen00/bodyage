@@ -8,3 +8,6 @@ Thumbs.db
 *.swp
 .vscode/
 .idea/
+# локальные настройки Claude Code - не в публичный репозиторий
+.claude/
+supabase/.temp/
